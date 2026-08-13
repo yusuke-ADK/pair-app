@@ -3,404 +3,218 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Pair Settle - ペア清算アプリ</title>
+  <title>ふたりの立替・割り勘メモ</title>
   <style>
-    :root {
-      --primary: #4f46e5;
-      --primary-hover: #4338ca;
-      --bg: #f8fafc;
-      --card-bg: #ffffff;
-      --text: #1e293b;
-      --text-muted: #64748b;
-      --border: #e2e8f0;
-      --danger: #ef4444;
-      --danger-hover: #dc2626;
-      --success: #10b981;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background-color: var(--bg);
-      color: var(--text);
-      line-height: 1.5;
-      padding: 16px;
-      max-width: 600px;
-      margin: 0 auto;
-    }
-
-    h1 { font-size: 1.5rem; text-align: center; margin-bottom: 20px; color: var(--primary); }
-    h2 { font-size: 1.1rem; margin-bottom: 12px; color: var(--text); border-left: 4px solid var(--primary); padding-left: 8px; }
-
-    .card {
-      background: var(--card-bg);
-      border-radius: 12px;
-      padding: 16px;
-      margin-bottom: 20px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      border: 1px solid var(--border);
-    }
-
-    .form-group { margin-bottom: 12px; }
-    label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 4px; color: var(--text-muted); }
-    input, select {
-      width: 100%;
-      padding: 10px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      font-size: 1rem;
-      outline: none;
-    }
-    input:focus, select:focus { border-color: var(--primary); }
-
-    .btn {
-      width: 100%;
-      padding: 12px;
-      background: var(--primary);
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: bold;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .btn:hover { background: var(--primary-hover); }
-    .btn-danger { background: var(--danger); }
-    .btn-danger:hover { background: var(--danger-hover); }
-    .btn-sm { width: auto; padding: 4px 8px; font-size: 0.8rem; border-radius: 4px; }
-
-    .settlement-summary {
-      text-align: center;
-      padding: 12px;
-      background: #eef2ff;
-      border-radius: 8px;
-      margin-bottom: 12px;
-      font-weight: bold;
-      font-size: 1.1rem;
-      color: var(--primary);
-    }
-
-    .item-list { list-style: none; }
-    .item-card {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 10px 0;
-      border-bottom: 1px solid var(--border);
-    }
-    .item-card:last-child { border-bottom: none; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 450px; margin: 15px auto; padding: 15px; background-color: #f8f9fa; }
+    .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
+    h2, h3 { text-align: center; color: #333; margin-top: 5px; }
+    .result { font-size: 1.1em; font-weight: bold; background: #eef6ff; color: #0056b3; padding: 15px; text-align: center; border-radius: 8px; margin-bottom: 10px; border: 1px solid #bce0fd; }
+    .form-group { margin-bottom: 10px; }
+    label { display: block; margin-bottom: 4px; font-size: 0.85em; color: #666; font-weight: bold; }
+    input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
+    .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
+    .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
+    .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; margin-left: 8px; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
     .item-info { flex-grow: 1; }
-    .item-title { font-weight: bold; }
-    .item-sub { font-size: 0.8rem; color: var(--text-muted); }
-    .item-amount { font-weight: bold; font-size: 1.05rem; margin-right: 12px; }
-
-    /* 清算履歴用のスタイル */
-    .history-card {
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      margin-bottom: 12px;
-      overflow: hidden;
-      background: #fff;
-    }
-    .history-header {
-      padding: 12px;
-      background: #f1f5f9;
-      cursor: pointer;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      user-select: none;
-    }
-    .history-header:hover { background: #e2e8f0; }
-    .history-title { font-weight: bold; font-size: 0.95rem; }
-    .history-date { font-size: 0.75rem; color: var(--text-muted); }
-    .history-details {
-      display: none;
-      padding: 12px;
-      background: #fafafa;
-      border-top: 1px solid var(--border);
-    }
-    .history-details.open { display: block; }
-    .history-detail-item {
-      font-size: 0.85rem;
-      padding: 4px 0;
-      display: flex;
-      justify-content: space-between;
-      border-bottom: 1px dashed var(--border);
-    }
-    .history-detail-item:last-child { border-bottom: none; }
-    .history-actions {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-top: 10px;
-      padding-top: 8px;
-      border-top: 1px solid var(--border);
-    }
-    .toggle-icon { font-size: 0.8rem; color: var(--text-muted); margin-left: 8px; }
+    .item-title { font-weight: bold; color: #333; }
+    .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
+    .settlement-block { background: #f1f3f5; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 0.85em; }
+    .settlement-title { font-weight: bold; color: #495057; margin-bottom: 5px; }
   </style>
 </head>
 <body>
 
-  <h1>Pair Settle</h1>
+  <h2>ふたりの立替・割り勘メモ</h2>
+
+  <!-- 現在の清算結果 -->
+  <div class="card">
+    <div class="result" id="resultBox">計算中...</div>
+    <button class="btn-settle" onclick="settleUp()">精算を完了して清算額をリセット</button>
+  </div>
 
   <!-- 入力フォーム -->
   <div class="card">
-    <h2>新しい立替を入力</h2>
     <div class="form-group">
-      <label>払った人</label>
+      <label>誰が払った？</label>
       <select id="payer">
-        <option value="自分">自分</option>
-        <option value="パートナー">パートナー</option>
+        <option value="ゆうすけ">ゆうすけ</option>
+        <option value="うらら">うらら</option>
       </select>
+
+      <label>項目（カテゴリー）</label>
+      <select id="category">
+        <option value="食費">食費</option>
+        <option value="外食代">外食代</option>
+        <option value="日用品">日用品</option>
+        <option value="家賃">家賃</option>
+        <option value="光熱費">光熱費</option>
+        <option value="交通費">交通費</option>
+        <option value="娯楽・レジャー">娯楽・レジャー</option>
+        <option value="旅行">旅行</option>
+        <option value="その他">その他</option>
+      </select>
+
+      <label>金額（円）</label>
+      <input type="number" id="amount" placeholder="例: 3000">
+
+      <label>詳細・メモ（任意）</label>
+      <input type="text" id="title" placeholder="例: スーパーでの買い物">
+
+      <label>割り方</label>
+      <select id="splitType">
+        <option value="EQUAL">折半（割り勘）</option>
+        <option value="PAY_ALL">全額立替</option>
+      </select>
+
+      <button class="btn-submit" onclick="addTransaction()">記録を追加する</button>
     </div>
-    <div class="form-group">
-      <label>項目・内容</label>
-      <input type="text" id="title" placeholder="例: スーパー買い物、外食代">
-    </div>
-    <div class="form-group">
-      <label>金額 (円)</label>
-      <input type="number" id="amount" placeholder="1000">
-    </div>
-    <button class="btn" id="addBtn">追加する</button>
   </div>
 
-  <!-- 未清算リスト & 計算 -->
+  <!-- 未精算の履歴 -->
   <div class="card">
-    <h2>未清算の立替</h2>
-    <div id="settlementResult" class="settlement-summary">計算中...</div>
-    <ul id="itemList" class="item-list"></ul>
-    <button class="btn btn-danger" id="settleBtn" style="margin-top: 16px;">精算を完了する</button>
+    <h3>未精算の記録</h3>
+    <ul id="historyList"></ul>
   </div>
 
-  <!-- 精算済み履歴 -->
+  <!-- 精算済みの過去ログ -->
   <div class="card">
-    <h2>これまでの精算履歴</h2>
-    <div id="historyList">読み込み中...</div>
+    <h3>精算済みの過去履歴</h3>
+    <div id="settledHistoryList"></div>
   </div>
 
-  <!-- Firebase SDK -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { 
-      getFirestore, collection, addDoc, onSnapshot, doc, deleteDoc, updateDoc, serverTimestamp, query, orderBy, writeBatch 
-    } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+  <script>
+    // データ初期化（ローカルストレージから読み込み）
+    let transactions = JSON.parse(localStorage.getItem('pair_transactions')) || [];
+    let settledGroups = JSON.parse(localStorage.getItem('pair_settled_groups')) || [];
 
-    // Firebase 設定
-    const firebaseConfig = {
-      apiKey: "AIzaSy...", // ※お持ちのConfigが設定されます
-      authDomain: "pair-app-61a15.firebaseapp.com",
-      projectId: "pair-app-61a15",
-      storageBucket: "pair-app-61a15.appspot.com",
-      messagingSenderId: "1071477123985",
-      appId: "1:1071477123985:web:..."
-    };
+    function saveData() {
+      localStorage.setItem('pair_transactions', JSON.stringify(transactions));
+      localStorage.setItem('pair_settled_groups', JSON.stringify(settledGroups));
+    }
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+    function addTransaction() {
+      const payer = document.getElementById('payer').value;
+      const category = document.getElementById('category').value;
+      const amount = Number(document.getElementById('amount').value);
+      const titleInput = document.getElementById('title').value;
+      const title = titleInput ? `${category}（${titleInput}）` : category;
+      const splitType = document.getElementById('splitType').value;
 
-    // DOM 要素
-    const payerSelect = document.getElementById('payer');
-    const titleInput = document.getElementById('title');
-    const amountInput = document.getElementById('amount');
-    const addBtn = document.getElementById('addBtn');
-    const itemList = document.getElementById('itemList');
-    const settlementResult = document.getElementById('settlementResult');
-    const settleBtn = document.getElementById('settleBtn');
-    const historyList = document.getElementById('historyList');
-
-    // 1. 立替の追加
-    addBtn.addEventListener('click', async () => {
-      const payer = payerSelect.value;
-      const title = titleInput.value.trim();
-      const amount = Number(amountInput.value);
-
-      if (!title || !amount) {
-        alert('項目名と金額を入力してください');
+      if (!amount || amount <= 0) {
+        alert('正しい金額を入力してください');
         return;
       }
 
-      try {
-        await addDoc(collection(db, "expenses"), {
-          payer,
-          title,
-          amount,
-          settled: false,
-          createdAt: serverTimestamp()
-        });
-        titleInput.value = '';
-        amountInput.value = '';
-      } catch (e) {
-        alert('エラーが発生しました: ' + e.message);
+      const newRecord = {
+        id: Date.now(),
+        payer,
+        amount,
+        title,
+        splitType,
+        date: new Date().toLocaleDateString('ja-JP')
+      };
+
+      transactions.push(newRecord);
+      saveData();
+
+      document.getElementById('amount').value = '';
+      document.getElementById('title').value = '';
+
+      updateView();
+    }
+
+    function deleteTransaction(id) {
+      if (confirm('この記録を削除しますか？')) {
+        transactions = transactions.filter(t => t.id !== id);
+        saveData();
+        updateView();
       }
-    });
+    }
 
-    // 2. 未清算データのリアルタイム読み込み＆計算
-    let currentUnsettledItems = [];
-    const qUnsettled = query(collection(db, "expenses"));
-    
-    onSnapshot(qUnsettled, (snapshot) => {
-      itemList.innerHTML = '';
-      let totalMy = 0;
-      let totalPartner = 0;
-      currentUnsettledItems = [];
+    function settleUp() {
+      if (transactions.length === 0) {
+        alert('未精算の記録がありません。');
+        return;
+      }
 
-      snapshot.docs.forEach(docSnap => {
-        const data = docSnap.data();
-        if (data.settled) return; // 精算済みはスキップ
+      if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
+        const settledDate = new Date().toLocaleString('ja-JP');
+        settledGroups.unshift({
+          date: settledDate,
+          items: [...transactions]
+        });
+        transactions = [];
+        saveData();
+        updateView();
+      }
+    }
 
-        currentUnsettledItems.push({ id: docSnap.id, ...data });
+    function updateView() {
+      let balance = 0; // 正なら「うらら➔ゆうすけ」、負なら「ゆうすけ➔うらら」
+      const historyList = document.getElementById('historyList');
+      historyList.innerHTML = '';
 
-        if (data.payer === '自分') totalMy += data.amount;
-        if (data.payer === 'パートナー') totalPartner += data.amount;
+      if (transactions.length === 0) {
+        historyList.innerHTML = '<li style="justify-content: center; color: #888;">未精算の記録はありません</li>';
+      }
+
+      transactions.forEach((t) => {
+        const half = t.amount / 2;
+        if (t.splitType === 'EQUAL') {
+          if (t.payer === 'ゆうすけ') balance += half;
+          if (t.payer === 'うらら') balance -= half;
+        } else {
+          if (t.payer === 'ゆうすけ') balance += t.amount;
+          if (t.payer === 'うらら') balance -= t.amount;
+        }
 
         const li = document.createElement('li');
-        li.className = 'item-card';
+        const typeText = t.splitType === 'EQUAL' ? '折半' : '全額立替';
+        
         li.innerHTML = `
           <div class="item-info">
-            <div class="item-title">${escapeHtml(data.title)}</div>
-            <div class="item-sub">${data.payer}が立替</div>
+            <div class="item-title">${t.title} - ${t.amount.toLocaleString()}円</div>
+            <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText})</div>
           </div>
-          <div class="item-amount">¥${data.amount.toLocaleString()}</div>
-          <button class="btn btn-danger btn-sm" onclick="deleteItem('${docSnap.id}')">削除</button>
+          <button class="btn-delete" onclick="deleteTransaction(${t.id})">削除</button>
         `;
-        itemList.appendChild(li);
+        historyList.appendChild(li);
       });
 
-      // 差額計算 (清算計算)
-      const diff = (totalMy - totalPartner) / 2;
-      if (diff === 0) {
-        settlementResult.textContent = '精算なし（トントンです）';
-      } else if (diff > 0) {
-        settlementResult.textContent = `パートナー ➔ 自分 へ ¥${Math.abs(diff).toLocaleString()} 支払う`;
+      // 精算結果を表示
+      const resultBox = document.getElementById('resultBox');
+      if (balance > 0) {
+        resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
+      } else if (balance < 0) {
+        resultBox.textContent = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円 支払う`;
       } else {
-        settlementResult.textContent = `自分 ➔ パートナー へ ¥${Math.abs(diff).toLocaleString()} 支払う`;
-      }
-    });
-
-    // 個別削除
-    window.deleteItem = async (id) => {
-      if (confirm('この立替を削除してもよろしいですか？')) {
-        await deleteDoc(doc(db, "expenses", id));
-      }
-    };
-
-    // 3. 精算の完了 (まとめ保存)
-    settleBtn.addEventListener('click', async () => {
-      if (currentUnsettledItems.length === 0) {
-        alert('未清算の立替はありません');
-        return;
+        resultBox.textContent = `貸し借りなし（清算済み）`;
       }
 
-      if (!confirm('現在の立替を清算済みにしますか？')) return;
+      // 過去の精算履歴を表示
+      const settledList = document.getElementById('settledHistoryList');
+      settledList.innerHTML = '';
 
-      try {
-        const batch = writeBatch(db);
-        
-        // 1. 清算履歴ドキュメントを作成
-        const settlementRef = doc(collection(db, "settlements"));
-        batch.set(settlementRef, {
-          summary: settlementResult.textContent,
-          createdAt: serverTimestamp(),
-          items: currentUnsettledItems.map(item => ({
-            title: item.title,
-            payer: item.payer,
-            amount: item.amount
-          }))
-        });
-
-        // 2. 該当アイテムを清算済みに更新
-        currentUnsettledItems.forEach(item => {
-          const itemRef = doc(db, "expenses", item.id);
-          batch.update(itemRef, { settled: true, settlementId: settlementRef.id });
-        });
-
-        await batch.commit();
-        alert('精算が完了しました！');
-      } catch (e) {
-        alert('エラーが発生しました: ' + e.message);
-      }
-    });
-
-    // 4. 清算履歴のリアルタイム読み込み＆表示（削除・内訳表示付き）
-    const qHistory = query(collection(db, "settlements"), orderBy("createdAt", "desc"));
-    onSnapshot(qHistory, (snapshot) => {
-      historyList.innerHTML = '';
-      if (snapshot.empty) {
-        historyList.innerHTML = '<p style="color:var(--text-muted); text-align:center;">履歴はありません</p>';
-        return;
-      }
-
-      snapshot.docs.forEach(docSnap => {
-        const data = docSnap.data();
-        const dateStr = data.createdAt ? new Date(data.createdAt.seconds * 1000).toLocaleString('ja-JP') : '直近';
-        const items = data.items || [];
-
-        const card = document.createElement('div');
-        card.className = 'history-card';
-        
-        let itemsHtml = items.map(i => `
-          <div class="history-detail-item">
-            <span>${escapeHtml(i.title)} (${i.payer})</span>
-            <span>¥${i.amount.toLocaleString()}</span>
-          </div>
-        `).join('');
-
-        if (items.length === 0) {
-          itemsHtml = '<div style="color:var(--text-muted);">内訳データなし</div>';
-        }
-
-        card.innerHTML = `
-          <div class="history-header" onclick="toggleDetails('${docSnap.id}')">
-            <div>
-              <div class="history-title">${escapeHtml(data.summary)}</div>
-              <div class="history-date">${dateStr}</div>
-            </div>
-            <span class="toggle-icon" id="icon-${docSnap.id}">▼ 内訳</span>
-          </div>
-          <div class="history-details" id="details-${docSnap.id}">
-            <strong style="font-size:0.8rem; color:var(--text-muted);">【内訳】</strong>
-            ${itemsHtml}
-            <div class="history-actions">
-              <span></span>
-              <button class="btn btn-danger btn-sm" onclick="deleteHistory('${docSnap.id}')">この履歴を削除</button>
-            </div>
-          </div>
-        `;
-        historyList.appendChild(card);
-      });
-    });
-
-    // 内訳トグル表示
-    window.toggleDetails = (id) => {
-      const details = document.getElementById(`details-${id}`);
-      const icon = document.getElementById(`icon-${id}`);
-      if (details.classList.contains('open')) {
-        details.classList.remove('open');
-        icon.textContent = '▼ 内訳';
+      if (settledGroups.length === 0) {
+        settledList.innerHTML = '<p style="text-align: center; color: #888; font-size: 0.85em;">過去の精算履歴はありません</p>';
       } else {
-        details.classList.add('open');
-        icon.textContent = '▲ 閉じる';
+        settledGroups.forEach((group) => {
+          const div = document.createElement('div');
+          div.className = 'settlement-block';
+          let itemsHtml = group.items.map(i => `・${i.title}: ${i.amount.toLocaleString()}円 (${i.payer})`).join('<br>');
+          div.innerHTML = `
+            <div class="settlement-title">精算日時: ${group.date} (${group.items.length}件)</div>
+            <div style="color: #666;">${itemsHtml}</div>
+          `;
+          settledList.appendChild(div);
+        });
       }
-    };
-
-    // 清算履歴の削除
-    window.deleteHistory = async (id) => {
-      if (confirm('この清算履歴を削除してもよろしいですか？\n（※過去の計算結果のみ削除され、未清算に戻るわけではありません）')) {
-        try {
-          await deleteDoc(doc(db, "settlements", id));
-        } catch (e) {
-          alert('削除に失敗しました: ' + e.message);
-        }
-      }
-    };
-
-    // HTMLエスケープ関数
-    function escapeHtml(str) {
-      if (!str) return '';
-      return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
+
+    // 初期表示
+    updateView();
   </script>
 </body>
 </html>
