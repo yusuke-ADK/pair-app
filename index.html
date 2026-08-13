@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ふたりの立替・割り勘メモ</title>
+  <title>あだちとうららの立替メモ</title>
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 450px; margin: 15px auto; padding: 15px; background-color: #f8f9fa; }
     .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
@@ -16,10 +16,12 @@
     input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
     .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
     .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
-    .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; margin-left: 8px; }
+    .btn-action-group { display: flex; gap: 4px; }
+    .btn-edit { background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
+    .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
     ul { list-style: none; padding: 0; margin: 0; }
     li { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
-    .item-info { flex-grow: 1; }
+    .item-info { flex-grow: 1; padding-right: 8px; }
     .item-title { font-weight: bold; color: #333; }
     .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
     
@@ -35,7 +37,7 @@
     /* モーダル表示用スタイル */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 1000; }
     .modal-overlay.open { display: flex; }
-    .modal-content { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 80vh; overflow-y: auto; }
+    .modal-content { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; }
     .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
     .modal-header h3 { margin: 0; font-size: 1.1em; }
     .btn-close { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #888; }
@@ -47,7 +49,7 @@
 </head>
 <body>
 
-  <h2>ふたりの立替・割り勘メモ</h2>
+  <h2>あだちとうららの立替メモ</h2>
 
   <!-- 現在の清算結果 -->
   <div class="card">
@@ -116,6 +118,45 @@
     </div>
   </div>
 
+  <!-- 記録の編集用モーダル -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>記録の編集</h3>
+        <button class="btn-close" onclick="closeEditModal()">✕</button>
+      </div>
+      <div class="form-group">
+        <input type="hidden" id="editId">
+
+        <label>日付</label>
+        <input type="date" id="editDateInput">
+
+        <label>誰が払った？</label>
+        <select id="editPayer">
+          <option value="ゆうすけ">ゆうすけ</option>
+          <option value="うらら">うらら</option>
+        </select>
+
+        <label>項目（カテゴリー）</label>
+        <select id="editCategory"></select>
+
+        <label>金額（円）</label>
+        <input type="number" id="editAmount">
+
+        <label>詳細・メモ（任意）</label>
+        <input type="text" id="editMemo" placeholder="例: スーパーでの買い物">
+
+        <label>割り方</label>
+        <select id="editSplitType">
+          <option value="EQUAL">折半（割り勘）</option>
+          <option value="PAY_ALL">全額立替</option>
+        </select>
+
+        <button class="btn-submit" onclick="saveEditedTransaction()" style="margin-top: 10px;">変更を保存する</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // デフォルトのカテゴリーリスト
     const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱費", "交通費", "娯楽・レジャー", "旅行", "その他"];
@@ -143,12 +184,21 @@
     // カテゴリーのUI更新
     function updateCategorySelect() {
       const categorySelect = document.getElementById('category');
+      const editCategorySelect = document.getElementById('editCategory');
+      
       categorySelect.innerHTML = '';
+      editCategorySelect.innerHTML = '';
+
       categories.forEach(cat => {
         const option = document.createElement('option');
         option.value = cat;
         option.textContent = cat;
         categorySelect.appendChild(option);
+
+        const editOption = document.createElement('option');
+        editOption.value = cat;
+        editOption.textContent = cat;
+        editCategorySelect.appendChild(editOption);
       });
     }
 
@@ -208,8 +258,8 @@
       const payer = document.getElementById('payer').value;
       const category = document.getElementById('category').value;
       const amount = Number(document.getElementById('amount').value);
-      const titleInput = document.getElementById('title').value;
-      const title = titleInput ? `${category}（${titleInput}）` : category;
+      const memo = document.getElementById('title').value;
+      const title = memo ? `${category}（${memo}）` : category;
       const splitType = document.getElementById('splitType').value;
 
       if (!dateVal) {
@@ -222,16 +272,18 @@
         return;
       }
 
-      // 日付表示のフォーマット調整 (YYYY/MM/DD)
       const formattedDate = dateVal.replace(/-/g, '/');
 
       const newRecord = {
         id: Date.now(),
         payer,
+        category,
+        memo,
         amount,
         title,
         splitType,
-        date: formattedDate
+        date: formattedDate,
+        rawDate: dateVal
       };
 
       transactions.push(newRecord);
@@ -241,6 +293,68 @@
       document.getElementById('title').value = '';
 
       updateView();
+    }
+
+    // 記録編集モーダルを開く
+    function openEditModal(id) {
+      const item = transactions.find(t => t.id === id);
+      if (!item) return;
+
+      document.getElementById('editId').value = item.id;
+      document.getElementById('editDateInput').value = item.rawDate || item.date.replace(/\//g, '-');
+      document.getElementById('editPayer').value = item.payer;
+      document.getElementById('editCategory').value = item.category || categories[0];
+      document.getElementById('editAmount').value = item.amount;
+      document.getElementById('editMemo').value = item.memo || '';
+      document.getElementById('editSplitType').value = item.splitType;
+
+      document.getElementById('editModal').classList.add('open');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('open');
+    }
+
+    function saveEditedTransaction() {
+      const id = Number(document.getElementById('editId').value);
+      const dateVal = document.getElementById('editDateInput').value;
+      const payer = document.getElementById('editPayer').value;
+      const category = document.getElementById('editCategory').value;
+      const amount = Number(document.getElementById('editAmount').value);
+      const memo = document.getElementById('editMemo').value;
+      const splitType = document.getElementById('editSplitType').value;
+
+      if (!dateVal) {
+        alert('日付を選択してください');
+        return;
+      }
+
+      if (!amount || amount <= 0) {
+        alert('正しい金額を入力してください');
+        return;
+      }
+
+      const index = transactions.findIndex(t => t.id === id);
+      if (index !== -1) {
+        const formattedDate = dateVal.replace(/-/g, '/');
+        const title = memo ? `${category}（${memo}）` : category;
+
+        transactions[index] = {
+          ...transactions[index],
+          payer,
+          category,
+          memo,
+          amount,
+          title,
+          splitType,
+          date: formattedDate,
+          rawDate: dateVal
+        };
+
+        saveData();
+        updateView();
+        closeEditModal();
+      }
     }
 
     function deleteTransaction(id) {
@@ -321,7 +435,10 @@
             <div class="item-title">${t.title} - ${t.amount.toLocaleString()}円</div>
             <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText})</div>
           </div>
-          <button class="btn-delete" onclick="deleteTransaction(${t.id})">削除</button>
+          <div class="btn-action-group">
+            <button class="btn-edit" onclick="openEditModal(${t.id})">編集</button>
+            <button class="btn-delete" onclick="deleteTransaction(${t.id})">削除</button>
+          </div>
         `;
         historyList.appendChild(li);
       });
