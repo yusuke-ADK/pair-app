@@ -18,7 +18,7 @@
     .label-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
     label { font-size: 0.85em; color: #666; font-weight: bold; }
     .btn-link { background: none; border: none; color: #007bff; font-size: 0.8em; cursor: pointer; text-decoration: underline; padding: 0; }
-    input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
+    input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
     .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
     .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
     .btn-action-group { display: flex; gap: 4px; }
@@ -50,26 +50,15 @@
     .category-add-box input { margin-bottom: 0; flex-grow: 1; }
     .category-add-box button { padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; }
     .category-list li { padding: 8px 0; }
-
-    /* 設定エリア */
-    #configArea { background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.85em; }
   </style>
 </head>
 <body>
 
   <h2>あだちとうららの立替メモ</h2>
 
-  <!-- 初回設定用エリア（Firebase未設定時のみ表示） -->
-  <div id="configArea" style="display: none;">
-    <strong style="color: #856404;">⚠️ 初期設定が必要です</strong>
-    <p style="margin: 5px 0 10px 0; color: #856404;">Firebaseの設定情報（firebaseConfig）をそのまま貼り付けて設定ボタンを押してください。</p>
-    <textarea id="configInput" rows="5" placeholder='const firebaseConfig = { ... };'></textarea>
-    <button class="btn-submit" onclick="saveConfig()" style="background: #ffc107; color: #212529;">Firebase設定を保存する</button>
-  </div>
-
   <!-- 現在の清算結果 -->
   <div class="card">
-    <div class="result" id="resultBox">通信準備中...</div>
+    <div class="result" id="resultBox">通信中...</div>
     <button class="btn-settle" onclick="settleUp()">精算を完了して清算額をリセット</button>
   </div>
 
@@ -117,9 +106,6 @@
   <div class="card">
     <h3>精算済みの過去履歴</h3>
     <div id="settledHistoryList"></div>
-    <div style="text-align: right; margin-top: 15px;">
-      <button class="btn-link" onclick="resetConfig()" style="color: #dc3545;">⚙️ Firebase設定をやり直す</button>
-    </div>
   </div>
 
   <!-- カテゴリー編集用モーダル -->
@@ -177,7 +163,20 @@
   </div>
 
   <script>
-    let db = null;
+    // 先ほど送っていただいたFirebase設定情報を埋め込んでいます
+    const firebaseConfig = {
+      apiKey: "AIzaSyB9PUPbJLyY3JM_Hv7Nrr9f62iJW8edulU",
+      authDomain: "pair-app-61a15.firebaseapp.com",
+      databaseURL: "https://pair-app-61a15-default-rtdb.firebaseio.com",
+      projectId: "pair-app-61a15",
+      storageBucket: "pair-app-61a15.firebasestorage.app",
+      messagingSenderId: "547054744435",
+      appId: "1:547054744435:web:8988a8932afaf118e10b06"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱費", "交通費", "娯楽・レジャー", "旅行", "その他"];
     let transactions = [];
     let settledGroups = [];
@@ -191,56 +190,7 @@
       document.getElementById('dateInput').value = `${yyyy}-${mm}-${dd}`;
     }
 
-    function initApp() {
-      const savedConfig = localStorage.getItem('pair_app_firebase_config');
-      if (!savedConfig) {
-        document.getElementById('configArea').style.display = 'block';
-        document.getElementById('resultBox').textContent = 'Firebase設定が必要です';
-        return;
-      }
-
-      try {
-        const configObj = JSON.parse(savedConfig);
-        if (!firebase.apps.length) {
-          firebase.initializeApp(configObj);
-        }
-        db = firebase.firestore();
-        document.getElementById('configArea').style.display = 'none';
-        initRealtimeSync();
-      } catch (e) {
-        alert('Firebase設定の読み込みに失敗しました。設定をやり直してください。');
-        document.getElementById('configArea').style.display = 'block';
-      }
-    }
-
-    function saveConfig() {
-      const input = document.getElementById('configInput').value;
-      try {
-        let jsonStr = input;
-        if (input.includes('{')) {
-          jsonStr = '{' + input.split('{')[1].split('}')[0] + '}';
-          // プロパティ名をクォートで囲む簡易変換
-          jsonStr = jsonStr.replace(/([a-zA-Z0-9_]+)\s*:/g, '"$1":').replace(/'/g, '"');
-        }
-        const configObj = JSON.parse(jsonStr);
-        localStorage.setItem('pair_app_firebase_config', JSON.stringify(configObj));
-        alert('設定を保存しました！ページを再読み込みします。');
-        location.reload();
-      } catch (e) {
-        alert('設定情報の形式が正しくありません。Firebaseの「firebaseConfig」の部分をそのまま貼り付けてください。');
-      }
-    }
-
-    function resetConfig() {
-      if (confirm('Firebase設定をクリアしますか？')) {
-        localStorage.removeItem('pair_app_firebase_config');
-        location.reload();
-      }
-    }
-
     function initRealtimeSync() {
-      if (!db) return;
-
       db.collection('transactions').onSnapshot(snapshot => {
         transactions = [];
         snapshot.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
@@ -325,7 +275,6 @@
     }
 
     async function addTransaction() {
-      if (!db) return alert('Firebaseが設定されていません');
       const dateVal = document.getElementById('dateInput').value;
       const payer = document.getElementById('payer').value;
       const category = document.getElementById('category').value;
@@ -522,7 +471,7 @@
     }
 
     setDefaultDate();
-    initApp();
+    initRealtimeSync();
   </script>
 </body>
 </html>
