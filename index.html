@@ -30,14 +30,18 @@
     .item-title { font-weight: bold; color: #333; }
     .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
     
-    /* アコーディオン */
+    /* アコーディオン & 詳細表示 */
     .settlement-block { background: #f1f3f5; border-radius: 8px; margin-bottom: 10px; font-size: 0.85em; overflow: hidden; border: 1px solid #e9ecef; }
     .settlement-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; cursor: pointer; user-select: none; transition: background 0.2s; }
     .settlement-header:hover { background: #e9ecef; }
     .settlement-title-info { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #495057; }
     .accordion-icon { font-size: 0.75em; color: #6c757d; }
-    .settlement-details { padding: 12px; border-top: 1px dashed #dee2e6; background: #fafafa; display: none; color: #555; }
+    .settlement-details { padding: 10px; border-top: 1px dashed #dee2e6; background: #fafafa; display: none; }
     .settlement-details.open { display: block; }
+    .settled-item-card { background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 0.9em; }
+    .settled-item-card:last-child { margin-bottom: 0; }
+    .settled-item-header { display: flex; justify-content: space-between; font-weight: bold; color: #333; margin-bottom: 2px; }
+    .settled-item-sub { color: #666; font-size: 0.85em; }
 
     /* モーダル */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 1000; }
@@ -180,7 +184,7 @@
     let transactions = [];
     let settledGroups = [];
     let categories = defaultCategories;
-    let currentBalanceText = ""; // 精算時の支払い方向を保持
+    let currentBalanceText = "";
 
     function setDefaultDate() {
       const today = new Date();
@@ -376,7 +380,7 @@
         await db.collection('settledGroups').add({
           date: settledDate,
           items: transactions,
-          summaryText: currentBalanceText, // 精算時点の支払い方向・金額を保存
+          summaryText: currentBalanceText,
           createdAt: Date.now()
         });
 
@@ -389,7 +393,6 @@
       }
     }
 
-    // 単一の精算グループの支払い方向を計算する補助関数
     function calculateGroupBalanceText(items) {
       let balance = 0;
       items.forEach((t) => {
@@ -466,7 +469,6 @@
         settledList.innerHTML = '<p style="text-align: center; color: #888; font-size: 0.85em;">過去の精算履歴はありません</p>';
       } else {
         settledGroups.forEach((group) => {
-          // 保存された表示テキストがあればそれを使い、無ければ自動計算する
           const summaryDisplay = group.summaryText || calculateGroupBalanceText(group.items);
 
           const div = document.createElement('div');
@@ -474,8 +476,20 @@
           
           let itemsHtml = group.items.map(i => {
             const typeText = i.splitType === 'EQUAL' ? '折半' : '全額立替';
-            return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
-          }).join('<br>');
+            const catName = i.category || '未分類';
+            const memoStr = i.memo ? `（${i.memo}）` : '';
+            return `
+              <div class="settled-item-card">
+                <div class="settled-item-header">
+                  <span>${catName}${memoStr}</span>
+                  <span>${i.amount.toLocaleString()}円</span>
+                </div>
+                <div class="settled-item-sub">
+                  ${i.date} / 支払者: ${i.payer} (${typeText})
+                </div>
+              </div>
+            `;
+          }).join('');
 
           div.innerHTML = `
             <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
