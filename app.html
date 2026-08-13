@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ゆうすけ & うらら 割り勘メモ</title>
+  <!-- Firebase SDK (v9/v10 Compat) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 480px; margin: 10px auto; padding: 12px; background-color: #f4f6f8; }
+    .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 12px; }
+    h2, h3 { text-align: center; color: #333; margin: 5px 0 15px; font-size: 1.2em; }
+    .result { font-size: 1.1em; font-weight: bold; background: #eef6ff; color: #0056b3; padding: 14px; text-align: center; border-radius: 8px; margin-bottom: 10px; border: 1px solid #bce0fd; }
+    .form-group { margin-bottom: 8px; }
+    label { display: block; margin-bottom: 4px; font-size: 0.8em; color: #555; font-weight: bold; }
+    input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
+    .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
+    .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; }
+    .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
+    .item-info { flex-grow: 1; }
+    .item-title { font-weight: bold; color: #333; }
+    .item-sub { color: #666; font-size: 0.8em; margin-top: 2px; }
+    .settlement-block { background: #f8f9fa; border: 1px solid #e9ecef; padding: 10px; border-radius: 6px; margin-bottom: 8px; font-size: 0.8em; }
+    .settlement-title { font-weight: bold; color: #495057; margin-bottom: 4px; }
+    .cat-manager { display: flex; gap: 6px; margin-bottom: 10px; }
+    .cat-manager input { margin-bottom: 0; }
+    .cat-manager button { width: auto; white-space: nowrap; padding: 0 12px; background: #6c757d; color: white; border: none; border-radius: 6px; }
+  </style>
+</head>
+<body>
+
+  <h2>ゆうすけ & うらら 割り勘メモ</h2>
+
+  <!-- 精算結果 -->
+  <div class="card">
+    <div class="result" id="resultBox">データ読み込み中...</div>
+    <button class="btn-settle" onclick="settleUp()">精算を完了してリセット</button>
+  </div>
+
+  <!-- 記録の入力 -->
+  <div class="card">
+    <div class="form-group">
+      <label>誰が払った？</label>
+      <select id="payer">
+        <option value="ゆうすけ">ゆうすけ</option>
+        <option value="うらら">うらら</option>
+      </select>
+
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <label>項目（カテゴリー）</label>
+        <span style="font-size:0.75em; color:#007bff; cursor:pointer;" onclick="toggleCategoryManager()">[項目の編集]</span>
+      </div>
+      
+      <!-- カテゴリー追加・削除の管理領域 -->
+      <div id="catManagerArea" style="display:none; background:#f0f0f0; padding:8px; border-radius:6px; margin-bottom:8px;">
+        <div class="cat-manager">
+          <input type="text" id="newCatInput" placeholder="新しい項目名">
+          <button onclick="addCategory()">追加</button>
+        </div>
+        <div id="categoryChips" style="display:flex; flex-wrap:wrap; gap:4px;"></div>
+      </div>
+
+      <select id="categorySelect"></select>
+
+      <label>金額（円）</label>
+      <input type="number" id="amount" placeholder="例: 3000">
+
+      <label>詳細・メモ（任意）</label>
+      <input type="text" id="title" placeholder="例: スーパーでの買い物">
+
+      <label>割り方</label>
+      <select id="splitType">
+        <option value="EQUAL">折半（割り勘）</option>
+        <option value="PAY_ALL">全額立替</option>
+      </select>
+
+      <button class="btn-submit" onclick="addTransaction()">記録を追加する</button>
+    </div>
+  </div>
+
+  <!-- 未精算の履歴 -->
+  <div class="card">
+    <h3>未精算の記録</h3>
+    <ul id="historyList"></ul>
+  </div>
+
+  <!-- 精算済みの過去ログ -->
+  <div class="card">
+    <h3>精算済みの過去履歴</h3>
+    <div id="settledHistoryList"></div>
+  </div>
+
+  <script>
+    // Firebaseの設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyB9PUPbJLyY3JM_Hv7Nrr9f62iJW8edulU",
+      authDomain: "pair-app-61a15.firebaseapp.com",
+      databaseURL: "https://pair-app-61a15-default-rtdb.firebaseio.com",
+      projectId: "pair-app-61a15",
+      storageBucket: "pair-app-61a15.firebasestorage.app",
+      messagingSenderId: "547054744435",
+      appId: "1:547054744435:web:d2524a0d9b4ddc89a74aa9"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let categories = ["食費", "外食代", "日用品", "家賃", "光熱費", "交通費", "娯楽・レジャー", "旅行", "その他"];
+
+    function initApp() {
+      // カテゴリー同期
+      db.collection("settings").doc("categories").onSnapshot((doc) => {
+        if (doc.exists && doc.data().list) {
+          categories = doc.data().list;
+        } else {
+          db.collection("settings").doc("categories").set({ list: categories });
+        }
+        renderCategories();
+      });
+
+      // 取引同期（未精算）
+      db.collection("transactions").where("settled", "==", false)
+        .onSnapshot((snapshot) => {
+          const list = [];
+          snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+          list.sort((a, b) => b.timestamp - a.timestamp);
+          renderTransactions(list);
+        });
+
+      // 精算済みログ同期
+      db.collection("settled_groups")
+        .onSnapshot((snapshot) => {
+          const list = [];
+          snapshot.forEach((doc) => list.push({ id: doc.id, ...doc.data() }));
+          list.sort((a, b) => b.timestamp - a.timestamp);
+          renderSettledGroups(list);
+        });
+    }
+
+    function renderCategories() {
+      const select = document.getElementById("categorySelect");
+      const chips = document.getElementById("categoryChips");
+      select.innerHTML = "";
+      chips.innerHTML = "";
+
+      categories.forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
+
+        const span = document.createElement("span");
+        span.style.cssText = "background:white; padding:2px 6px; border-radius:4px; font-size:0.75em; display:inline-flex; align-items:center;";
+        span.innerHTML = `${cat} <b onclick="removeCategory('${cat}')" style="color:red; margin-left:4px; cursor:pointer;">×</b>`;
+        chips.appendChild(span);
+      });
+    }
+
+    function toggleCategoryManager() {
+      const area = document.getElementById("catManagerArea");
+      area.style.display = area.style.display === "none" ? "block" : "none";
+    }
+
+    function addCategory() {
+      const val = document.getElementById("newCatInput").value.trim();
+      if (val && !categories.includes(val)) {
+        categories.push(val);
+        db.collection("settings").doc("categories").set({ list: categories });
+        document.getElementById("newCatInput").value = "";
+      }
+    }
+
+    function removeCategory(catName) {
+      if (confirm(`カテゴリー「${catName}」を削除しますか？`)) {
+        categories = categories.filter(c => c !== catName);
+        db.collection("settings").doc("categories").set({ list: categories });
+      }
+    }
+
+    function addTransaction() {
+      const payer = document.getElementById("payer").value;
+      const category = document.getElementById("categorySelect").value;
+      const amount = Number(document.getElementById("amount").value);
+      const memo = document.getElementById("title").value;
+      const title = memo ? `${category}（${memo}）` : category;
+      const splitType = document.getElementById("splitType").value;
+
+      if (!amount || amount <= 0) {
+        alert("金額を入力してください");
+        return;
+      }
+
+      db.collection("transactions").add({
+        payer,
+        amount,
+        title,
+        splitType,
+        settled: false,
+        date: new Date().toLocaleDateString("ja-JP"),
+        timestamp: Date.now()
+      });
+
+      document.getElementById("amount").value = "";
+      document.getElementById("title").value = "";
+    }
+
+    function deleteTransaction(id) {
+      if (confirm("この記録を削除しますか？")) {
+        db.collection("transactions").doc(id).delete();
+      }
+    }
+
+    function renderTransactions(list) {
+      let balance = 0;
+      const historyList = document.getElementById("historyList");
+      historyList.innerHTML = "";
+
+      if (list.length === 0) {
+        historyList.innerHTML = '<li style="justify-content: center; color: #888;">未精算の記録はありません</li>';
+      }
+
+      list.forEach((t) => {
+        const half = t.amount / 2;
+        if (t.splitType === "EQUAL") {
+          if (t.payer === "ゆうすけ") balance += half;
+          if (t.payer === "うらら") balance -= half;
+        } else {
+          if (t.payer === "ゆうすけ") balance += t.amount;
+          if (t.payer === "うらら") balance -= t.amount;
+        }
+
+        const li = document.createElement("li");
+        const typeText = t.splitType === "EQUAL" ? "折半" : "全額立替";
+        li.innerHTML = `
+          <div class="item-info">
+            <div class="item-title">${t.title} - ${t.amount.toLocaleString()}円</div>
+            <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText})</div>
+          </div>
+          <button class="btn-delete" onclick="deleteTransaction('${t.id}')">削除</button>
+        `;
+        historyList.appendChild(li);
+      });
+
+      const resultBox = document.getElementById("resultBox");
+      if (balance > 0) {
+        resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
+      } else if (balance < 0) {
+        resultBox.textContent = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円 支払う`;
+      } else {
+        resultBox.textContent = `貸し借りなし（清算済み）`;
+      }
+    }
+
+    async function settleUp() {
+      const snapshot = await db.collection("transactions").where("settled", "==", false).get();
+      if (snapshot.empty) {
+        alert("未精算の記録がありません。");
+        return;
+      }
+
+      if (confirm("精算を完了して、現在の残高を0にリセットしますか？")) {
+        const items = [];
+        const batch = db.batch();
+
+        snapshot.forEach((doc) => {
+          items.push(doc.data());
+          batch.update(doc.ref, { settled: true });
+        });
+
+        const newGroupRef = db.collection("settled_groups").doc();
+        batch.set(newGroupRef, {
+          date: new Date().toLocaleString("ja-JP"),
+          timestamp: Date.now(),
+          items: items
+        });
+
+        await batch.commit();
+      }
+    }
+
+    function renderSettledGroups(groups) {
+      const settledList = document.getElementById("settledHistoryList");
+      settledList.innerHTML = "";
+
+      if (groups.length === 0) {
+        settledList.innerHTML = '<p style="text-align: center; color: #888; font-size: 0.8em;">過去の精算履歴はありません</p>';
+      } else {
+        groups.forEach((group) => {
+          const div = document.createElement("div");
+          div.className = "settlement-block";
+          let itemsHtml = group.items.map(i => `・${i.title}: ${i.amount.toLocaleString()}円 (${i.payer})`).join("<br>");
+          div.innerHTML = `
+            <div class="settlement-title">精算日時: ${group.date} (${group.items.length}件)</div>
+            <div style="color: #666;">${itemsHtml}</div>
+          `;
+          settledList.appendChild(div);
+        });
+      }
+    }
+
+    initApp();
+  </script>
+</body>
+</html>
