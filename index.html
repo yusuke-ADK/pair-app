@@ -4,6 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>あだちとうららの立替メモ</title>
+
+  <!-- Firebase (SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
   <style>
     body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 450px; margin: 15px auto; padding: 15px; background-color: #f8f9fa; }
     .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
@@ -13,7 +18,7 @@
     .label-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
     label { font-size: 0.85em; color: #666; font-weight: bold; }
     .btn-link { background: none; border: none; color: #007bff; font-size: 0.8em; cursor: pointer; text-decoration: underline; padding: 0; }
-    input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
+    input, select, textarea { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
     .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
     .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
     .btn-action-group { display: flex; gap: 4px; }
@@ -25,16 +30,16 @@
     .item-title { font-weight: bold; color: #333; }
     .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
     
-    /* アコーディオン用スタイル */
+    /* アコーディオン */
     .settlement-block { background: #f1f3f5; border-radius: 8px; margin-bottom: 10px; font-size: 0.85em; overflow: hidden; border: 1px solid #e9ecef; }
     .settlement-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; cursor: pointer; user-select: none; transition: background 0.2s; }
     .settlement-header:hover { background: #e9ecef; }
     .settlement-title-info { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #495057; }
-    .accordion-icon { font-size: 0.75em; color: #6c757d; transition: transform 0.2s; }
+    .accordion-icon { font-size: 0.75em; color: #6c757d; }
     .settlement-details { padding: 12px; border-top: 1px dashed #dee2e6; background: #fafafa; display: none; color: #555; }
     .settlement-details.open { display: block; }
 
-    /* モーダル表示用スタイル */
+    /* モーダル */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 1000; }
     .modal-overlay.open { display: flex; }
     .modal-content { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; }
@@ -45,15 +50,26 @@
     .category-add-box input { margin-bottom: 0; flex-grow: 1; }
     .category-add-box button { padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; }
     .category-list li { padding: 8px 0; }
+
+    /* 設定エリア */
+    #configArea { background: #fff3cd; border: 1px solid #ffeeba; border-radius: 8px; padding: 12px; margin-bottom: 15px; font-size: 0.85em; }
   </style>
 </head>
 <body>
 
   <h2>あだちとうららの立替メモ</h2>
 
+  <!-- 初回設定用エリア（Firebase未設定時のみ表示） -->
+  <div id="configArea" style="display: none;">
+    <strong style="color: #856404;">⚠️ 初期設定が必要です</strong>
+    <p style="margin: 5px 0 10px 0; color: #856404;">Firebaseの設定情報（firebaseConfig）をそのまま貼り付けて設定ボタンを押してください。</p>
+    <textarea id="configInput" rows="5" placeholder='const firebaseConfig = { ... };'></textarea>
+    <button class="btn-submit" onclick="saveConfig()" style="background: #ffc107; color: #212529;">Firebase設定を保存する</button>
+  </div>
+
   <!-- 現在の清算結果 -->
   <div class="card">
-    <div class="result" id="resultBox">計算中...</div>
+    <div class="result" id="resultBox">通信準備中...</div>
     <button class="btn-settle" onclick="settleUp()">精算を完了して清算額をリセット</button>
   </div>
 
@@ -101,6 +117,9 @@
   <div class="card">
     <h3>精算済みの過去履歴</h3>
     <div id="settledHistoryList"></div>
+    <div style="text-align: right; margin-top: 15px;">
+      <button class="btn-link" onclick="resetConfig()" style="color: #dc3545;">⚙️ Firebase設定をやり直す</button>
+    </div>
   </div>
 
   <!-- カテゴリー編集用モーダル -->
@@ -158,15 +177,12 @@
   </div>
 
   <script>
-    // デフォルトのカテゴリーリスト
+    let db = null;
     const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱費", "交通費", "娯楽・レジャー", "旅行", "その他"];
+    let transactions = [];
+    let settledGroups = [];
+    let categories = defaultCategories;
 
-    // データ初期化（ローカルストレージから読み込み）
-    let transactions = JSON.parse(localStorage.getItem('pair_transactions')) || [];
-    let settledGroups = JSON.parse(localStorage.getItem('pair_settled_groups')) || [];
-    let categories = JSON.parse(localStorage.getItem('pair_categories')) || defaultCategories;
-
-    // 今日の日付を YYYY-MM-DD 形式で取得してセット
     function setDefaultDate() {
       const today = new Date();
       const yyyy = today.getFullYear();
@@ -175,17 +191,82 @@
       document.getElementById('dateInput').value = `${yyyy}-${mm}-${dd}`;
     }
 
-    function saveData() {
-      localStorage.setItem('pair_transactions', JSON.stringify(transactions));
-      localStorage.setItem('pair_settled_groups', JSON.stringify(settledGroups));
-      localStorage.setItem('pair_categories', JSON.stringify(categories));
+    function initApp() {
+      const savedConfig = localStorage.getItem('pair_app_firebase_config');
+      if (!savedConfig) {
+        document.getElementById('configArea').style.display = 'block';
+        document.getElementById('resultBox').textContent = 'Firebase設定が必要です';
+        return;
+      }
+
+      try {
+        const configObj = JSON.parse(savedConfig);
+        if (!firebase.apps.length) {
+          firebase.initializeApp(configObj);
+        }
+        db = firebase.firestore();
+        document.getElementById('configArea').style.display = 'none';
+        initRealtimeSync();
+      } catch (e) {
+        alert('Firebase設定の読み込みに失敗しました。設定をやり直してください。');
+        document.getElementById('configArea').style.display = 'block';
+      }
     }
 
-    // カテゴリーのUI更新
+    function saveConfig() {
+      const input = document.getElementById('configInput').value;
+      try {
+        let jsonStr = input;
+        if (input.includes('{')) {
+          jsonStr = '{' + input.split('{')[1].split('}')[0] + '}';
+          // プロパティ名をクォートで囲む簡易変換
+          jsonStr = jsonStr.replace(/([a-zA-Z0-9_]+)\s*:/g, '"$1":').replace(/'/g, '"');
+        }
+        const configObj = JSON.parse(jsonStr);
+        localStorage.setItem('pair_app_firebase_config', JSON.stringify(configObj));
+        alert('設定を保存しました！ページを再読み込みします。');
+        location.reload();
+      } catch (e) {
+        alert('設定情報の形式が正しくありません。Firebaseの「firebaseConfig」の部分をそのまま貼り付けてください。');
+      }
+    }
+
+    function resetConfig() {
+      if (confirm('Firebase設定をクリアしますか？')) {
+        localStorage.removeItem('pair_app_firebase_config');
+        location.reload();
+      }
+    }
+
+    function initRealtimeSync() {
+      if (!db) return;
+
+      db.collection('transactions').onSnapshot(snapshot => {
+        transactions = [];
+        snapshot.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
+        updateView();
+      });
+
+      db.collection('settledGroups').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        settledGroups = [];
+        snapshot.forEach(doc => settledGroups.push({ id: doc.id, ...doc.data() }));
+        updateView();
+      });
+
+      db.collection('settings').doc('categories').onSnapshot(doc => {
+        if (doc.exists && doc.data().list) {
+          categories = doc.data().list;
+        } else {
+          categories = defaultCategories;
+          db.collection('settings').doc('categories').set({ list: defaultCategories });
+        }
+        updateCategorySelect();
+      });
+    }
+
     function updateCategorySelect() {
       const categorySelect = document.getElementById('category');
       const editCategorySelect = document.getElementById('editCategory');
-      
       categorySelect.innerHTML = '';
       editCategorySelect.innerHTML = '';
 
@@ -202,7 +283,6 @@
       });
     }
 
-    // カテゴリー編集モーダルの開閉とリスト描画
     function openCategoryModal() {
       renderCategoryModalList();
       document.getElementById('categoryModal').classList.add('open');
@@ -225,35 +305,27 @@
       });
     }
 
-    function addCategory() {
+    async function addCategory() {
       const input = document.getElementById('newCategoryInput');
       const name = input.value.trim();
       if (!name) return;
-      if (categories.includes(name)) {
-        alert('すでに存在する項目です');
-        return;
-      }
-      categories.push(name);
-      saveData();
-      updateCategorySelect();
-      renderCategoryModalList();
+      if (categories.includes(name)) return alert('すでに存在する項目です');
+      const newCategories = [...categories, name];
+      await db.collection('settings').doc('categories').set({ list: newCategories });
       input.value = '';
     }
 
-    function deleteCategory(index) {
-      if (categories.length <= 1) {
-        alert('項目は最低1つ残す必要があります');
-        return;
-      }
+    async function deleteCategory(index) {
+      if (categories.length <= 1) return alert('項目は最低1つ残す必要があります');
       if (confirm(`「${categories[index]}」を削除しますか？`)) {
-        categories.splice(index, 1);
-        saveData();
-        updateCategorySelect();
+        const newCategories = categories.filter((_, i) => i !== index);
+        await db.collection('settings').doc('categories').set({ list: newCategories });
         renderCategoryModalList();
       }
     }
 
-    function addTransaction() {
+    async function addTransaction() {
+      if (!db) return alert('Firebaseが設定されていません');
       const dateVal = document.getElementById('dateInput').value;
       const payer = document.getElementById('payer').value;
       const category = document.getElementById('category').value;
@@ -262,40 +334,20 @@
       const title = memo ? `${category}（${memo}）` : category;
       const splitType = document.getElementById('splitType').value;
 
-      if (!dateVal) {
-        alert('日付を選択してください');
-        return;
-      }
-
-      if (!amount || amount <= 0) {
-        alert('正しい金額を入力してください');
-        return;
-      }
+      if (!dateVal) return alert('日付を選択してください');
+      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
       const formattedDate = dateVal.replace(/-/g, '/');
 
-      const newRecord = {
-        id: Date.now(),
-        payer,
-        category,
-        memo,
-        amount,
-        title,
-        splitType,
-        date: formattedDate,
-        rawDate: dateVal
-      };
-
-      transactions.push(newRecord);
-      saveData();
+      await db.collection('transactions').add({
+        payer, category, memo, amount, title, splitType,
+        date: formattedDate, rawDate: dateVal, createdAt: Date.now()
+      });
 
       document.getElementById('amount').value = '';
       document.getElementById('title').value = '';
-
-      updateView();
     }
 
-    // 記録編集モーダルを開く
     function openEditModal(id) {
       const item = transactions.find(t => t.id === id);
       if (!item) return;
@@ -315,8 +367,8 @@
       document.getElementById('editModal').classList.remove('open');
     }
 
-    function saveEditedTransaction() {
-      const id = Number(document.getElementById('editId').value);
+    async function saveEditedTransaction() {
+      const id = document.getElementById('editId').value;
       const dateVal = document.getElementById('editDateInput').value;
       const payer = document.getElementById('editPayer').value;
       const category = document.getElementById('editCategory').value;
@@ -324,53 +376,30 @@
       const memo = document.getElementById('editMemo').value;
       const splitType = document.getElementById('editSplitType').value;
 
-      if (!dateVal) {
-        alert('日付を選択してください');
-        return;
-      }
+      if (!dateVal) return alert('日付を選択してください');
+      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
-      if (!amount || amount <= 0) {
-        alert('正しい金額を入力してください');
-        return;
-      }
+      const formattedDate = dateVal.replace(/-/g, '/');
+      const title = memo ? `${category}（${memo}）` : category;
 
-      const index = transactions.findIndex(t => t.id === id);
-      if (index !== -1) {
-        const formattedDate = dateVal.replace(/-/g, '/');
-        const title = memo ? `${category}（${memo}）` : category;
+      await db.collection('transactions').doc(id).update({
+        payer, category, memo, amount, title, splitType,
+        date: formattedDate, rawDate: dateVal
+      });
 
-        transactions[index] = {
-          ...transactions[index],
-          payer,
-          category,
-          memo,
-          amount,
-          title,
-          splitType,
-          date: formattedDate,
-          rawDate: dateVal
-        };
-
-        saveData();
-        updateView();
-        closeEditModal();
-      }
+      closeEditModal();
     }
 
-    function deleteTransaction(id) {
+    async function deleteTransaction(id) {
       if (confirm('この記録を削除しますか？')) {
-        transactions = transactions.filter(t => t.id !== id);
-        saveData();
-        updateView();
+        await db.collection('transactions').doc(id).delete();
       }
     }
 
-    function deleteSettledGroup(id, event) {
+    async function deleteSettledGroup(id, event) {
       event.stopPropagation();
       if (confirm('この精算履歴を削除しますか？（復元はできません）')) {
-        settledGroups = settledGroups.filter(g => g.id !== id);
-        saveData();
-        updateView();
+        await db.collection('settledGroups').doc(id).delete();
       }
     }
 
@@ -389,27 +418,29 @@
       }
     }
 
-    function settleUp() {
-      if (transactions.length === 0) {
-        alert('未精算の記録がありません。');
-        return;
-      }
+    async function settleUp() {
+      if (transactions.length === 0) return alert('未精算の記録がありません。');
 
       if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
         const settledDate = new Date().toLocaleString('ja-JP');
-        settledGroups.unshift({
-          id: Date.now(),
+        
+        await db.collection('settledGroups').add({
           date: settledDate,
-          items: [...transactions]
+          items: transactions,
+          createdAt: Date.now()
         });
-        transactions = [];
-        saveData();
-        updateView();
+
+        const batch = db.batch();
+        transactions.forEach(t => {
+          const ref = db.collection('transactions').doc(t.id);
+          batch.delete(ref);
+        });
+        await batch.commit();
       }
     }
 
     function updateView() {
-      let balance = 0; // 正なら「うらら➔ゆうすけ」、負なら「ゆうすけ➔うらら」
+      let balance = 0;
       const historyList = document.getElementById('historyList');
       historyList.innerHTML = '';
 
@@ -436,14 +467,13 @@
             <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText})</div>
           </div>
           <div class="btn-action-group">
-            <button class="btn-edit" onclick="openEditModal(${t.id})">編集</button>
-            <button class="btn-delete" onclick="deleteTransaction(${t.id})">削除</button>
+            <button class="btn-edit" onclick="openEditModal('${t.id}')">編集</button>
+            <button class="btn-delete" onclick="deleteTransaction('${t.id}')">削除</button>
           </div>
         `;
         historyList.appendChild(li);
       });
 
-      // 精算結果を表示
       const resultBox = document.getElementById('resultBox');
       if (balance > 0) {
         resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
@@ -453,7 +483,6 @@
         resultBox.textContent = `貸し借りなし（清算済み）`;
       }
 
-      // 過去の精算履歴を表示
       const settledList = document.getElementById('settledHistoryList');
       settledList.innerHTML = '';
 
@@ -471,7 +500,7 @@
           }).join('<br>');
 
           div.innerHTML = `
-            <div class="settlement-header" onclick="toggleAccordion(${group.id})">
+            <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
               <div class="settlement-title-info">
                 <span class="accordion-icon" id="icon-${group.id}">▶</span>
                 <div>
@@ -481,7 +510,7 @@
                   </div>
                 </div>
               </div>
-              <button class="btn-delete" onclick="deleteSettledGroup(${group.id}, event)">削除</button>
+              <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
             </div>
             <div class="settlement-details" id="details-${group.id}">
               ${itemsHtml}
@@ -492,10 +521,8 @@
       }
     }
 
-    // 初期化処理
     setDefaultDate();
-    updateCategorySelect();
-    updateView();
+    initApp();
   </script>
 </body>
 </html>
