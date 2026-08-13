@@ -10,7 +10,9 @@
     h2, h3 { text-align: center; color: #333; margin-top: 5px; }
     .result { font-size: 1.1em; font-weight: bold; background: #eef6ff; color: #0056b3; padding: 15px; text-align: center; border-radius: 8px; margin-bottom: 10px; border: 1px solid #bce0fd; }
     .form-group { margin-bottom: 10px; }
-    label { display: block; margin-bottom: 4px; font-size: 0.85em; color: #666; font-weight: bold; }
+    .label-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    label { font-size: 0.85em; color: #666; font-weight: bold; }
+    .btn-link { background: none; border: none; color: #007bff; font-size: 0.8em; cursor: pointer; text-decoration: underline; padding: 0; }
     input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
     .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
     .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
@@ -29,6 +31,18 @@
     .accordion-icon { font-size: 0.75em; color: #6c757d; transition: transform 0.2s; }
     .settlement-details { padding: 12px; border-top: 1px dashed #dee2e6; background: #fafafa; display: none; color: #555; }
     .settlement-details.open { display: block; }
+
+    /* モーダル表示用スタイル */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-overlay.open { display: flex; }
+    .modal-content { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 80vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .modal-header h3 { margin: 0; font-size: 1.1em; }
+    .btn-close { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #888; }
+    .category-add-box { display: flex; gap: 6px; margin-bottom: 15px; }
+    .category-add-box input { margin-bottom: 0; flex-grow: 1; }
+    .category-add-box button { padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; }
+    .category-list li { padding: 8px 0; }
   </style>
 </head>
 <body>
@@ -50,18 +64,11 @@
         <option value="うらら">うらら</option>
       </select>
 
-      <label>項目（カテゴリー）</label>
-      <select id="category">
-        <option value="食費">食費</option>
-        <option value="外食代">外食代</option>
-        <option value="日用品">日用品</option>
-        <option value="家賃">家賃</option>
-        <option value="光熱費">光熱費</option>
-        <option value="交通費">交通費</option>
-        <option value="娯楽・レジャー">娯楽・レジャー</option>
-        <option value="旅行">旅行</option>
-        <option value="その他">その他</option>
-      </select>
+      <div class="label-container">
+        <label>項目（カテゴリー）</label>
+        <button type="button" class="btn-link" onclick="openCategoryModal()">⚙️ 項目を編集</button>
+      </div>
+      <select id="category"></select>
 
       <label>金額（円）</label>
       <input type="number" id="amount" placeholder="例: 3000">
@@ -91,14 +98,97 @@
     <div id="settledHistoryList"></div>
   </div>
 
+  <!-- カテゴリー編集用モーダル -->
+  <div class="modal-overlay" id="categoryModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>項目の編集</h3>
+        <button class="btn-close" onclick="closeCategoryModal()">✕</button>
+      </div>
+      <div class="category-add-box">
+        <input type="text" id="newCategoryInput" placeholder="新しい項目名">
+        <button onclick="addCategory()">追加</button>
+      </div>
+      <ul class="category-list" id="modalCategoryList"></ul>
+    </div>
+  </div>
+
   <script>
+    // デフォルトのカテゴリーリスト
+    const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱費", "交通費", "娯楽・レジャー", "旅行", "その他"];
+
     // データ初期化（ローカルストレージから読み込み）
     let transactions = JSON.parse(localStorage.getItem('pair_transactions')) || [];
     let settledGroups = JSON.parse(localStorage.getItem('pair_settled_groups')) || [];
+    let categories = JSON.parse(localStorage.getItem('pair_categories')) || defaultCategories;
 
     function saveData() {
       localStorage.setItem('pair_transactions', JSON.stringify(transactions));
       localStorage.setItem('pair_settled_groups', JSON.stringify(settledGroups));
+      localStorage.setItem('pair_categories', JSON.stringify(categories));
+    }
+
+    // カテゴリーのUI更新
+    function updateCategorySelect() {
+      const categorySelect = document.getElementById('category');
+      categorySelect.innerHTML = '';
+      categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        categorySelect.appendChild(option);
+      });
+    }
+
+    // カテゴリー編集モーダルの開閉とリスト描画
+    function openCategoryModal() {
+      renderCategoryModalList();
+      document.getElementById('categoryModal').classList.add('open');
+    }
+
+    function closeCategoryModal() {
+      document.getElementById('categoryModal').classList.remove('open');
+    }
+
+    function renderCategoryModalList() {
+      const modalList = document.getElementById('modalCategoryList');
+      modalList.innerHTML = '';
+      categories.forEach((cat, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span>${cat}</span>
+          <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
+        `;
+        modalList.appendChild(li);
+      });
+    }
+
+    function addCategory() {
+      const input = document.getElementById('newCategoryInput');
+      const name = input.value.trim();
+      if (!name) return;
+      if (categories.includes(name)) {
+        alert('すでに存在する項目です');
+        return;
+      }
+      categories.push(name);
+      saveData();
+      updateCategorySelect();
+      renderCategoryModalList();
+      input.value = '';
+    }
+
+    function deleteCategory(index) {
+      if (categories.length <= 1) {
+        alert('項目は最低1つ残す必要があります');
+        return;
+      }
+      if (confirm(`「${categories[index]}」を削除しますか？`)) {
+        categories.splice(index, 1);
+        saveData();
+        updateCategorySelect();
+        renderCategoryModalList();
+      }
     }
 
     function addTransaction() {
@@ -141,9 +231,7 @@
     }
 
     function deleteSettledGroup(id, event) {
-      // 親要素（アコーディオン開閉）へのクリックイベント伝播を防止
       event.stopPropagation();
-      
       if (confirm('この精算履歴を削除しますか？（復元はできません）')) {
         settledGroups = settledGroups.filter(g => g.id !== id);
         saveData();
@@ -266,7 +354,8 @@
       }
     }
 
-    // 初期表示
+    // 初期化処理
+    updateCategorySelect();
     updateView();
   </script>
 </body>
