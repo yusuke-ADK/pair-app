@@ -15,13 +15,15 @@
     .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
     .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
     .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; margin-left: 8px; }
+    .btn-delete-group { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; margin-top: 8px; display: inline-block; }
     ul { list-style: none; padding: 0; margin: 0; }
     li { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
     .item-info { flex-grow: 1; }
     .item-title { font-weight: bold; color: #333; }
     .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
     .settlement-block { background: #f1f3f5; padding: 10px; border-radius: 6px; margin-bottom: 10px; font-size: 0.85em; }
-    .settlement-title { font-weight: bold; color: #495057; margin-bottom: 5px; }
+    .settlement-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px; }
+    .settlement-title { font-weight: bold; color: #495057; }
   </style>
 </head>
 <body>
@@ -133,6 +135,14 @@
       }
     }
 
+    function deleteSettledGroup(id) {
+      if (confirm('この精算履歴を削除しますか？（復元はできません）')) {
+        settledGroups = settledGroups.filter(g => g.id !== id);
+        saveData();
+        updateView();
+      }
+    }
+
     function settleUp() {
       if (transactions.length === 0) {
         alert('未精算の記録がありません。');
@@ -142,6 +152,7 @@
       if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
         const settledDate = new Date().toLocaleString('ja-JP');
         settledGroups.unshift({
+          id: Date.now(),
           date: settledDate,
           items: [...transactions]
         });
@@ -205,8 +216,11 @@
           div.className = 'settlement-block';
           let itemsHtml = group.items.map(i => `・${i.title}: ${i.amount.toLocaleString()}円 (${i.payer})`).join('<br>');
           div.innerHTML = `
-            <div class="settlement-title">精算日時: ${group.date} (${group.items.length}件)</div>
-            <div style="color: #666;">${itemsHtml}</div>
+            <div class="settlement-header">
+              <span class="settlement-title">精算日時: ${group.date} (${group.items.length}件)</span>
+              <button class="btn-delete" onclick="deleteSettledGroup(${group.id})">削除</button>
+            </div>
+            <div style="color: #666; margin-top: 4px;">${itemsHtml}</div>
           `;
           settledList.appendChild(div);
         });
