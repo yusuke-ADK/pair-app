@@ -58,6 +58,9 @@
   <!-- 入力フォーム -->
   <div class="card">
     <div class="form-group">
+      <label>日付</label>
+      <input type="date" id="dateInput">
+
       <label>誰が払った？</label>
       <select id="payer">
         <option value="ゆうすけ">ゆうすけ</option>
@@ -121,6 +124,15 @@
     let transactions = JSON.parse(localStorage.getItem('pair_transactions')) || [];
     let settledGroups = JSON.parse(localStorage.getItem('pair_settled_groups')) || [];
     let categories = JSON.parse(localStorage.getItem('pair_categories')) || defaultCategories;
+
+    // 今日の日付を YYYY-MM-DD 形式で取得してセット
+    function setDefaultDate() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById('dateInput').value = `${yyyy}-${mm}-${dd}`;
+    }
 
     function saveData() {
       localStorage.setItem('pair_transactions', JSON.stringify(transactions));
@@ -192,6 +204,7 @@
     }
 
     function addTransaction() {
+      const dateVal = document.getElementById('dateInput').value;
       const payer = document.getElementById('payer').value;
       const category = document.getElementById('category').value;
       const amount = Number(document.getElementById('amount').value);
@@ -199,10 +212,18 @@
       const title = titleInput ? `${category}（${titleInput}）` : category;
       const splitType = document.getElementById('splitType').value;
 
+      if (!dateVal) {
+        alert('日付を選択してください');
+        return;
+      }
+
       if (!amount || amount <= 0) {
         alert('正しい金額を入力してください');
         return;
       }
+
+      // 日付表示のフォーマット調整 (YYYY/MM/DD)
+      const formattedDate = dateVal.replace(/-/g, '/');
 
       const newRecord = {
         id: Date.now(),
@@ -210,7 +231,7 @@
         amount,
         title,
         splitType,
-        date: new Date().toLocaleDateString('ja-JP')
+        date: formattedDate
       };
 
       transactions.push(newRecord);
@@ -329,7 +350,7 @@
           
           let itemsHtml = group.items.map(i => {
             const typeText = i.splitType === 'EQUAL' ? '折半' : '全額立替';
-            return `・${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
+            return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
           }).join('<br>');
 
           div.innerHTML = `
@@ -337,7 +358,7 @@
               <div class="settlement-title-info">
                 <span class="accordion-icon" id="icon-${group.id}">▶</span>
                 <div>
-                  <div>${group.date}</div>
+                  <div>精算日時: ${group.date}</div>
                   <div style="font-size: 0.85em; color: #666; font-weight: normal;">
                     ${group.items.length}件 / 計 ${totalAmount.toLocaleString()}円
                   </div>
@@ -355,6 +376,7 @@
     }
 
     // 初期化処理
+    setDefaultDate();
     updateCategorySelect();
     updateView();
   </script>
