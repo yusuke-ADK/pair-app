@@ -1772,7 +1772,42 @@
             return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
           }).join('<br>');
 
-          const summaryDisp = group.summaryText ? group.summaryText : '清算額データなし';
+          // ★修正ポイント：もし古いデータに summaryText がなくても、保存されている items から動的に計算して表示する
+          let summaryDisp = group.summaryText;
+          if (!summaryDisp && group.items && group.items.length > 0) {
+            let histBalance = 0;
+            group.items.forEach(t => {
+              let yRatio = 1, uRatio = 1;
+              if (t.splitType === 'CUSTOM') {
+                yRatio = t.ratioY !== undefined ? t.ratioY : 1;
+                uRatio = t.ratioU !== undefined ? t.ratioU : 1;
+              } else if (t.splitType === 'PAY_ALL') {
+                if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
+                else { yRatio = 1; uRatio = 0; }
+              } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
+                const parts = t.splitType.split('_');
+                yRatio = parseInt(parts[1], 10);
+                uRatio = parseInt(parts[2], 10);
+              }
+              const totalRatio = yRatio + uRatio;
+              if (totalRatio > 0) {
+                if (t.payer === 'ゆうすけ') {
+                  histBalance += Math.round((t.amount * uRatio) / totalRatio);
+                } else if (t.payer === 'うらら') {
+                  histBalance -= Math.round((t.amount * yRatio) / totalRatio);
+                }
+              }
+            });
+
+            if (histBalance > 0) {
+              summaryDisp = `うらら ➔ ゆうすけ へ ${histBalance.toLocaleString()}円`;
+            } else if (histBalance < 0) {
+              summaryDisp = `ゆうすけ ➔ うらら へ ${Math.abs(histBalance).toLocaleString()}円`;
+            } else {
+              summaryDisp = "貸し借りなし（清算済み）";
+            }
+          }
+          summaryDisp = summaryDisp || '清算額データなし';
 
           div.innerHTML = `
             <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
