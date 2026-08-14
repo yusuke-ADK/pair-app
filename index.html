@@ -390,7 +390,7 @@
     /* ルーレット演出用スタイル */
     .roulette-box {
       text-align: center;
-      padding: 10px 5px;
+      padding: 20px 10px;
     }
     .roulette-display {
       font-size: 1.3em;
@@ -549,22 +549,7 @@
         <h3>🎰 割り勘ルーレット</h3>
         <button class="btn-close" onclick="closeRouletteModal()">✕</button>
       </div>
-
-      <!-- 第一画面（支払者の選択） -->
-      <div id="rouletteStep1" class="roulette-box">
-        <p style="font-weight: bold; margin-bottom: 18px; font-size: 1.05em; color: var(--text-main);">支払いはどちらがしましたか？</p>
-        <div style="display: flex; gap: 12px; justify-content: center; margin-bottom: 10px;">
-          <button type="button" class="btn-submit" style="flex: 1; padding: 14px; font-size: 1.1em; background: linear-gradient(135deg, #4a6fa5 0%, #3b5984 100%);" onclick="selectRoulettePayer('ゆうすけ')">ゆうすけ</button>
-          <button type="button" class="btn-submit" style="flex: 1; padding: 14px; font-size: 1.1em; background: linear-gradient(135deg, #a55eea 0%, #8854d0 100%);" onclick="selectRoulettePayer('うらら')">うらら</button>
-        </div>
-      </div>
-
-      <!-- 第二画面（ルーレット結果と実行） -->
-      <div id="rouletteStep2" class="roulette-box" style="display: none;">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; font-size: 0.88em; background: rgba(0,0,0,0.04); padding: 8px 12px; border-radius: 8px;">
-          <span>支払者: <strong id="rouletteSelectedPayerText" style="color: var(--primary-color);"></strong></span>
-          <button type="button" class="btn-link" onclick="backToRouletteStep1()" style="font-size: 0.85em; color: var(--text-sub);">← 支払者を変更</button>
-        </div>
+      <div class="roulette-box">
         <div class="roulette-display" id="rouletteDisplay">ボタンを押してスタート！</div>
         <button class="btn-spin" id="btnSpin" onclick="spinRoulette()">ルーレットを回す！</button>
         <button class="btn-apply-roulette" id="btnApplyRoulette" onclick="applyRouletteResult()">この結果をフォームにセット</button>
@@ -934,65 +919,23 @@
     }
 
     /* --- 割り勘ルーレット関連 --- */
-    let selectedRoulettePayer = 'ゆうすけ';
     let rouletteResult = null;
-
-    // 支払者に応じたルーレット選択肢の生成
-    function getRouletteOptions(payer) {
-      if (payer === 'ゆうすけ') {
-        return [
-          { text: "👑 うららが【全額負担】！", splitType: "PAY_ALL", payer: "ゆうすけ" },
-          { text: "平和に【折半】 (1 : 1)", splitType: "EQUAL", payer: "ゆうすけ" },
-          { text: "🎯 ゆうすけ 7 ： 3 うらら", splitType: "CUSTOM", ratioY: 7, ratioU: 3, payer: "ゆうすけ" },
-          { text: "🎯 ゆうすけ 3 ： 7 うらら", splitType: "CUSTOM", ratioY: 3, ratioU: 7, payer: "ゆうすけ" },
-          { text: "🔥 ゆうすけ 9 ： 1 うらら", splitType: "CUSTOM", ratioY: 9, ratioU: 1, payer: "ゆうすけ" },
-          { text: "🔥 ゆうすけ 1 ： 9 うらら", splitType: "CUSTOM", ratioY: 1, ratioU: 9, payer: "ゆうすけ" },
-          { text: "👑 ゆうすけが【全額負担】！", splitType: "CUSTOM", ratioY: 1, ratioU: 0, payer: "ゆうすけ" }
-        ];
-      } else {
-        return [
-          { text: "👑 ゆうすけが【全額負担】！", splitType: "PAY_ALL", payer: "うらら" },
-          { text: "平和に【折半】 (1 : 1)", splitType: "EQUAL", payer: "うらら" },
-          { text: "🎯 ゆうすけ 7 ： 3 うらら", splitType: "CUSTOM", ratioY: 7, ratioU: 3, payer: "うらら" },
-          { text: "🎯 ゆうすけ 3 ： 7 うらら", splitType: "CUSTOM", ratioY: 3, ratioU: 7, payer: "うらら" },
-          { text: "🔥 ゆうすけ 9 ： 1 うらら", splitType: "CUSTOM", ratioY: 9, ratioU: 1, payer: "うらら" },
-          { text: "🔥 ゆうすけ 1 ： 9 うらら", splitType: "CUSTOM", ratioY: 1, ratioU: 9, payer: "うらら" },
-          { text: "👑 うららが【全額負担】！", splitType: "CUSTOM", ratioY: 0, ratioU: 1, payer: "うらら" }
-        ];
-      }
-    }
+    const rouletteOptions = [
+      { text: "平和に【折半】 (1 : 1)", splitType: "EQUAL" },
+      { text: "👑 ゆうすけが【全額立替】！", splitType: "PAY_ALL", payer: "ゆうすけ" },
+      { text: "👑 うららが【全額立替】！", splitType: "PAY_ALL", payer: "うらら" },
+      { text: "🎯 ゆうすけ 7 ： 3 うらら", splitType: "CUSTOM", ratioY: 7, ratioU: 3 },
+      { text: "🎯 ゆうすけ 3 ： 7 うらら", splitType: "CUSTOM", ratioY: 3, ratioU: 7 },
+      { text: "🔥 ゆうすけ 9 ： 1 うらら", splitType: "CUSTOM", ratioY: 9, ratioU: 1 },
+      { text: "🔥 ゆうすけ 1 ： 9 うらら", splitType: "CUSTOM", ratioY: 1, ratioU: 9 }
+    ];
 
     function openRouletteModal() {
-      // メインフォームの現在の支払者を初期値としてセット
-      const checkedPayer = document.querySelector('input[name="payer"]:checked');
-      if (checkedPayer) {
-        selectedRoulettePayer = checkedPayer.value;
-      } else {
-        selectedRoulettePayer = 'ゆうすけ';
-      }
-
-      // Step1を表示
-      document.getElementById('rouletteStep1').style.display = 'block';
-      document.getElementById('rouletteStep2').style.display = 'none';
-      document.getElementById('rouletteModal').classList.add('open');
-    }
-
-    function selectRoulettePayer(payer) {
-      selectedRoulettePayer = payer;
-      document.getElementById('rouletteSelectedPayerText').textContent = payer;
       document.getElementById('rouletteDisplay').textContent = "ボタンを押してスタート！";
       document.getElementById('btnApplyRoulette').style.display = 'none';
       document.getElementById('btnSpin').disabled = false;
-
-      document.getElementById('rouletteStep1').style.display = 'none';
-      document.getElementById('rouletteStep2').style.display = 'block';
+      document.getElementById('rouletteModal').classList.add('open');
     }
-
-    function backToRouletteStep1() {
-      document.getElementById('rouletteStep1').style.display = 'block';
-      document.getElementById('rouletteStep2').style.display = 'none';
-    }
-
     function closeRouletteModal() {
       document.getElementById('rouletteModal').classList.remove('open');
     }
@@ -1005,8 +948,6 @@
       btnSpin.disabled = true;
       btnApply.style.display = 'none';
 
-      const options = getRouletteOptions(selectedRoulettePayer);
-
       const duration = 3000; // 3秒間
       const startTime = Date.now();
       let stepInterval = 50; // 初期切り替え間隔 (ms)
@@ -1017,8 +958,8 @@
 
         if (elapsed < duration) {
           // ランダム表示
-          const randomIndex = Math.floor(Math.random() * options.length);
-          rouletteResult = options[randomIndex];
+          const randomIndex = Math.floor(Math.random() * rouletteOptions.length);
+          rouletteResult = rouletteOptions[randomIndex];
           display.textContent = rouletteResult.text;
           playTickSE();
 
@@ -1027,8 +968,8 @@
           setTimeout(updateSlot, stepInterval);
         } else {
           // 最終決定
-          const finalIndex = Math.floor(Math.random() * options.length);
-          rouletteResult = options[finalIndex];
+          const finalIndex = Math.floor(Math.random() * rouletteOptions.length);
+          rouletteResult = rouletteOptions[finalIndex];
           display.textContent = rouletteResult.text;
           playFanfareSE();
 
@@ -1043,7 +984,6 @@
     function applyRouletteResult() {
       if (!rouletteResult) return;
 
-      // 支払者を反映
       if (rouletteResult.payer) {
         if (rouletteResult.payer === 'ゆうすけ') {
           document.getElementById('payerYusuke').checked = true;
@@ -1052,7 +992,6 @@
         }
       }
 
-      // 割り方・割合を反映
       if (rouletteResult.splitType === 'EQUAL') {
         setRatioState('', false);
         document.getElementById('splitType').value = 'EQUAL';
@@ -1084,7 +1023,7 @@
     }
 
     function setRatioState(prefix, isCustom) {
-      const p = prefix ? prefix : '';
+      const p = prefix ? prefix + (prefix.endsWith('Edit') || prefix.endsWith('Use') ? '' : '') : '';
       const simpleArea = document.getElementById(p ? `${p}SimpleSplitArea` : 'simpleSplitArea');
       const customArea = document.getElementById(p ? `${p}CustomSplitArea` : 'customSplitArea');
       const toggleBtn = document.getElementById(p ? `${p}ToggleRatioBtn` : 'toggleRatioBtn');
