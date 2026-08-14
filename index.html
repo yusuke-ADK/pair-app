@@ -18,18 +18,52 @@
     .label-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
     label { font-size: 0.85em; color: #666; font-weight: bold; }
     .btn-link { background: none; border: none; color: #007bff; font-size: 0.8em; cursor: pointer; text-decoration: underline; padding: 0; }
-    input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
+    input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
     .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
     .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
     .btn-action-group { display: flex; gap: 4px; }
     .btn-edit { background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
     .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
+    .btn-move { background: #e9ecef; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
+    .btn-move:disabled { opacity: 0.4; cursor: not-allowed; }
     ul { list-style: none; padding: 0; margin: 0; }
     li { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
     .item-info { flex-grow: 1; padding-right: 8px; }
     .item-title { font-weight: bold; color: #333; }
     .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
     
+    /* 支払い者ボタン（ラジオボタン） */
+    .radio-group { display: flex; gap: 10px; margin-bottom: 10px; }
+    .radio-group input[type="radio"] { display: none; }
+    .radio-group label {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      background: #e9ecef;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #495057;
+      border: 2px solid transparent;
+      transition: 0.2s;
+      margin-bottom: 0;
+    }
+    .radio-group input[type="radio"]:checked + label {
+      background: #eef6ff;
+      border-color: #007bff;
+      color: #007bff;
+    }
+
+    /* 割合カスタム入力 */
+    .custom-ratio-inputs { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; background: #f8f9fa; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
+    .custom-ratio-inputs input { margin-bottom: 0; width: 60px; text-align: center; font-size: 1.1em; font-weight: bold; }
+    .custom-ratio-inputs span { font-weight: bold; color: #555; font-size: 0.9em; }
+
+    /* 並べ替えコントロール */
+    .sort-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; background: #f1f3f5; padding: 8px 12px; border-radius: 8px; font-size: 0.85em; }
+    .sort-controls label { margin-bottom: 0; font-weight: normal; }
+    .sort-controls select { margin-bottom: 0; width: auto; padding: 4px 8px; font-size: 0.9em; flex-grow: 1; }
+
     /* アコーディオン */
     .settlement-block { background: #f1f3f5; border-radius: 8px; margin-bottom: 10px; font-size: 0.85em; overflow: hidden; border: 1px solid #e9ecef; }
     .settlement-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; cursor: pointer; user-select: none; transition: background 0.2s; }
@@ -65,14 +99,17 @@
   <!-- 入力フォーム -->
   <div class="card">
     <div class="form-group">
-      <label>日付</label>
+      <label>発生日</label>
       <input type="date" id="dateInput">
 
       <label>誰が払った？</label>
-      <select id="payer">
-        <option value="ゆうすけ">ゆうすけ</option>
-        <option value="うらら">うらら</option>
-      </select>
+      <div class="radio-group">
+        <input type="radio" id="payerYusuke" name="payer" value="ゆうすけ" checked>
+        <label for="payerYusuke">ゆうすけ</label>
+        
+        <input type="radio" id="payerUrara" name="payer" value="うらら">
+        <label for="payerUrara">うらら</label>
+      </div>
 
       <div class="label-container">
         <label>項目（カテゴリー）</label>
@@ -86,11 +123,28 @@
       <label>詳細・メモ（任意）</label>
       <input type="text" id="title" placeholder="例: スーパーでの買い物">
 
-      <label>割り方</label>
-      <select id="splitType">
-        <option value="EQUAL">折半（割り勘）</option>
-        <option value="PAY_ALL">全額立替</option>
-      </select>
+      <div id="simpleSplitArea">
+        <label>割り方</label>
+        <select id="splitType">
+          <option value="EQUAL">折半</option>
+          <option value="PAY_ALL">全額立替</option>
+        </select>
+      </div>
+
+      <div id="customSplitArea" style="display: none;">
+        <label>割り方</label>
+        <div class="custom-ratio-inputs">
+          <span>ゆうすけ</span>
+          <input type="number" id="ratioYusuke" value="1" min="0">
+          <span>：</span>
+          <span>うらら</span>
+          <input type="number" id="ratioUrara" value="1" min="0">
+        </div>
+      </div>
+
+      <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
+        <button type="button" class="btn-link" id="toggleRatioBtn" onclick="toggleRatio('')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
+      </div>
 
       <button class="btn-submit" onclick="addTransaction()">記録を追加する</button>
     </div>
@@ -99,6 +153,18 @@
   <!-- 未精算の履歴 -->
   <div class="card">
     <h3>未精算の記録</h3>
+    <div class="sort-controls">
+      <label>並び替え:</label>
+      <select id="sortKey" onchange="updateView()">
+        <option value="createdAt" selected>登録日時</option>
+        <option value="date">発生日</option>
+        <option value="category">項目</option>
+      </select>
+      <select id="sortOrder" onchange="updateView()">
+        <option value="desc" selected>降順 ▼</option>
+        <option value="asc">昇順 ▲</option>
+      </select>
+    </div>
     <ul id="historyList"></ul>
   </div>
 
@@ -133,14 +199,17 @@
       <div class="form-group">
         <input type="hidden" id="editId">
 
-        <label>日付</label>
+        <label>発生日</label>
         <input type="date" id="editDateInput">
 
         <label>誰が払った？</label>
-        <select id="editPayer">
-          <option value="ゆうすけ">ゆうすけ</option>
-          <option value="うらら">うらら</option>
-        </select>
+        <div class="radio-group">
+          <input type="radio" id="editPayerYusuke" name="editPayer" value="ゆうすけ">
+          <label for="editPayerYusuke">ゆうすけ</label>
+          
+          <input type="radio" id="editPayerUrara" name="editPayer" value="うらら">
+          <label for="editPayerUrara">うらら</label>
+        </div>
 
         <label>項目（カテゴリー）</label>
         <select id="editCategory"></select>
@@ -151,11 +220,28 @@
         <label>詳細・メモ（任意）</label>
         <input type="text" id="editMemo" placeholder="例: スーパーでの買い物">
 
-        <label>割り方</label>
-        <select id="editSplitType">
-          <option value="EQUAL">折半（割り勘）</option>
-          <option value="PAY_ALL">全額立替</option>
-        </select>
+        <div id="editSimpleSplitArea">
+          <label>割り方</label>
+          <select id="editSplitType">
+            <option value="EQUAL">折半</option>
+            <option value="PAY_ALL">全額立替</option>
+          </select>
+        </div>
+
+        <div id="editCustomSplitArea" style="display: none;">
+          <label>割り方</label>
+          <div class="custom-ratio-inputs">
+            <span>ゆうすけ</span>
+            <input type="number" id="editRatioYusuke" value="1" min="0">
+            <span>：</span>
+            <span>うらら</span>
+            <input type="number" id="editRatioUrara" value="1" min="0">
+          </div>
+        </div>
+
+        <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
+          <button type="button" class="btn-link" id="editToggleRatioBtn" onclick="toggleRatio('edit')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
+        </div>
 
         <button class="btn-submit" onclick="saveEditedTransaction()" style="margin-top: 10px;">変更を保存する</button>
       </div>
@@ -163,7 +249,6 @@
   </div>
 
   <script>
-    // 先ほど送っていただいたFirebase設定情報を埋め込んでいます
     const firebaseConfig = {
       apiKey: "AIzaSyB9PUPbJLyY3JM_Hv7Nrr9f62iJW8edulU",
       authDomain: "pair-app-61a15.firebaseapp.com",
@@ -181,6 +266,10 @@
     let transactions = [];
     let settledGroups = [];
     let categories = defaultCategories;
+    
+    // 割合切り替えのステータス管理
+    let isCustomRatio = false;
+    let isEditCustomRatio = false;
 
     function setDefaultDate() {
       const today = new Date();
@@ -188,6 +277,46 @@
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
       document.getElementById('dateInput').value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    function toggleRatio(prefix) {
+      const isEdit = prefix === 'edit';
+      
+      if (isEdit) {
+        isEditCustomRatio = !isEditCustomRatio;
+      } else {
+        isCustomRatio = !isCustomRatio;
+      }
+      
+      const currentMode = isEdit ? isEditCustomRatio : isCustomRatio;
+      const simpleArea = document.getElementById(isEdit ? 'editSimpleSplitArea' : 'simpleSplitArea');
+      const customArea = document.getElementById(isEdit ? 'editCustomSplitArea' : 'customSplitArea');
+      const btn = document.getElementById(isEdit ? 'editToggleRatioBtn' : 'toggleRatioBtn');
+
+      if (currentMode) {
+        simpleArea.style.display = 'none';
+        customArea.style.display = 'block';
+        btn.textContent = 'ー シンプルに戻す';
+      } else {
+        simpleArea.style.display = 'block';
+        customArea.style.display = 'none';
+        btn.textContent = '＋ 割合を細かく設定';
+      }
+    }
+
+    function getRatioDisplayText(splitType, ratioY, ratioU) {
+      if (splitType === 'CUSTOM') {
+        return `ゆ${ratioY}：う${ratioU}`;
+      } else if (splitType === 'PAY_ALL') {
+        return '全額立替';
+      } else if (splitType === 'EQUAL') {
+        return '折半';
+      } else if (splitType && splitType.startsWith('RATIO_')) {
+        // 過去のプルダウン仕様データの互換対応
+        const parts = splitType.split('_');
+        return `ゆ${parts[1]}：う${parts[2]}`;
+      }
+      return '折半';
     }
 
     function initRealtimeSync() {
@@ -211,12 +340,20 @@
           db.collection('settings').doc('categories').set({ list: defaultCategories });
         }
         updateCategorySelect();
+        
+        if (document.getElementById('categoryModal').classList.contains('open')) {
+          renderCategoryModalList();
+        }
       });
     }
 
     function updateCategorySelect() {
       const categorySelect = document.getElementById('category');
       const editCategorySelect = document.getElementById('editCategory');
+      
+      const currentVal = categorySelect.value;
+      const currentEditVal = editCategorySelect.value;
+      
       categorySelect.innerHTML = '';
       editCategorySelect.innerHTML = '';
 
@@ -231,6 +368,9 @@
         editOption.textContent = cat;
         editCategorySelect.appendChild(editOption);
       });
+      
+      if (categories.includes(currentVal)) categorySelect.value = currentVal;
+      if (categories.includes(currentEditVal)) editCategorySelect.value = currentEditVal;
     }
 
     function openCategoryModal() {
@@ -249,10 +389,26 @@
         const li = document.createElement('li');
         li.innerHTML = `
           <span>${cat}</span>
-          <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
+          <div class="btn-action-group">
+            <button class="btn-move" onclick="moveCategory(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
+            <button class="btn-move" onclick="moveCategory(${index}, 1)" ${index === categories.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
+          </div>
         `;
         modalList.appendChild(li);
       });
+    }
+
+    async function moveCategory(index, direction) {
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= categories.length) return;
+      
+      const newCategories = [...categories];
+      const temp = newCategories[index];
+      newCategories[index] = newCategories[newIndex];
+      newCategories[newIndex] = temp;
+      
+      await db.collection('settings').doc('categories').set({ list: newCategories });
     }
 
     async function addCategory() {
@@ -270,31 +426,54 @@
       if (confirm(`「${categories[index]}」を削除しますか？`)) {
         const newCategories = categories.filter((_, i) => i !== index);
         await db.collection('settings').doc('categories').set({ list: newCategories });
-        renderCategoryModalList();
       }
     }
 
     async function addTransaction() {
       const dateVal = document.getElementById('dateInput').value;
-      const payer = document.getElementById('payer').value;
+      const payer = document.querySelector('input[name="payer"]:checked').value;
       const category = document.getElementById('category').value;
       const amount = Number(document.getElementById('amount').value);
       const memo = document.getElementById('title').value;
       const title = memo ? `${category}（${memo}）` : category;
-      const splitType = document.getElementById('splitType').value;
+      
+      let splitType, ratioY = 1, ratioU = 1;
+      
+      if (isCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('ratioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('ratioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('splitType').value;
+      }
 
-      if (!dateVal) return alert('日付を選択してください');
+      if (!dateVal) return alert('発生日を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
       const formattedDate = dateVal.replace(/-/g, '/');
 
       await db.collection('transactions').add({
-        payer, category, memo, amount, title, splitType,
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
         date: formattedDate, rawDate: dateVal, createdAt: Date.now()
       });
 
+      // 入力フォームをリセット
       document.getElementById('amount').value = '';
       document.getElementById('title').value = '';
+      
+      if (isCustomRatio) {
+        isCustomRatio = false;
+        document.getElementById('simpleSplitArea').style.display = 'block';
+        document.getElementById('customSplitArea').style.display = 'none';
+        document.getElementById('toggleRatioBtn').textContent = '＋ 割合を細かく設定';
+      }
+      document.getElementById('splitType').value = 'EQUAL';
+      document.getElementById('ratioYusuke').value = '1';
+      document.getElementById('ratioUrara').value = '1';
+      
+      // ラジオボタンをゆうすけに戻す
+      document.getElementById('payerYusuke').checked = true;
     }
 
     function openEditModal(id) {
@@ -303,11 +482,30 @@
 
       document.getElementById('editId').value = item.id;
       document.getElementById('editDateInput').value = item.rawDate || item.date.replace(/\//g, '-');
-      document.getElementById('editPayer').value = item.payer;
+      
+      // ラジオボタンの選択状態を反映
+      const payerInput = document.querySelector(`input[name="editPayer"][value="${item.payer}"]`);
+      if (payerInput) payerInput.checked = true;
+
       document.getElementById('editCategory').value = item.category || categories[0];
       document.getElementById('editAmount').value = item.amount;
       document.getElementById('editMemo').value = item.memo || '';
-      document.getElementById('editSplitType').value = item.splitType;
+      
+      const splitType = item.splitType || 'EQUAL';
+      
+      // カスタム割合かどうかでUIを切り替え
+      if (splitType === 'CUSTOM') {
+        isEditCustomRatio = true;
+        document.getElementById('editRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
+        document.getElementById('editRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
+      } else {
+        isEditCustomRatio = false;
+        document.getElementById('editSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
+      }
+
+      document.getElementById('editSimpleSplitArea').style.display = isEditCustomRatio ? 'none' : 'block';
+      document.getElementById('editCustomSplitArea').style.display = isEditCustomRatio ? 'block' : 'none';
+      document.getElementById('editToggleRatioBtn').textContent = isEditCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
 
       document.getElementById('editModal').classList.add('open');
     }
@@ -319,20 +517,30 @@
     async function saveEditedTransaction() {
       const id = document.getElementById('editId').value;
       const dateVal = document.getElementById('editDateInput').value;
-      const payer = document.getElementById('editPayer').value;
+      const payer = document.querySelector('input[name="editPayer"]:checked').value;
       const category = document.getElementById('editCategory').value;
       const amount = Number(document.getElementById('editAmount').value);
       const memo = document.getElementById('editMemo').value;
-      const splitType = document.getElementById('editSplitType').value;
+      
+      let splitType, ratioY = 1, ratioU = 1;
+      
+      if (isEditCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('editRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('editRatioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('editSplitType').value;
+      }
 
-      if (!dateVal) return alert('日付を選択してください');
+      if (!dateVal) return alert('発生日を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
       const formattedDate = dateVal.replace(/-/g, '/');
       const title = memo ? `${category}（${memo}）` : category;
 
       await db.collection('transactions').doc(id).update({
-        payer, category, memo, amount, title, splitType,
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
         date: formattedDate, rawDate: dateVal
       });
 
@@ -373,9 +581,11 @@
       if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
         const settledDate = new Date().toLocaleString('ja-JP');
         
+        const itemsToSave = [...transactions].sort((a, b) => a.createdAt - b.createdAt);
+        
         await db.collection('settledGroups').add({
           date: settledDate,
-          items: transactions,
+          items: itemsToSave,
           createdAt: Date.now()
         });
 
@@ -390,25 +600,65 @@
 
     function updateView() {
       let balance = 0;
+      
+      // 合計金額の計算（負担割合の反映）
+      transactions.forEach((t) => {
+        let yRatio = 1, uRatio = 1;
+
+        if (t.splitType === 'CUSTOM') {
+          yRatio = t.ratioY !== undefined ? t.ratioY : 1;
+          uRatio = t.ratioU !== undefined ? t.ratioU : 1;
+        } else if (t.splitType === 'PAY_ALL') {
+          // 立て替えた人＝負担0、相手＝全額負担の割合とみなす
+          if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
+          else { yRatio = 1; uRatio = 0; }
+        } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
+          // 過去データ用
+          const parts = t.splitType.split('_');
+          yRatio = parseInt(parts[1], 10);
+          uRatio = parseInt(parts[2], 10);
+        }
+
+        const totalRatio = yRatio + uRatio;
+        if (totalRatio > 0) {
+          if (t.payer === 'ゆうすけ') {
+            balance += Math.round((t.amount * uRatio) / totalRatio);
+          } else if (t.payer === 'うらら') {
+            balance -= Math.round((t.amount * yRatio) / totalRatio);
+          }
+        }
+      });
+
+      // 並べ替え処理
+      const sortKey = document.getElementById('sortKey').value;
+      const sortOrder = document.getElementById('sortOrder').value;
+      
+      let sortedTransactions = [...transactions];
+      sortedTransactions.sort((a, b) => {
+        let valA = a[sortKey];
+        let valB = b[sortKey];
+        
+        if (sortKey === 'date') {
+          valA = a.rawDate || a.date;
+          valB = b.rawDate || b.date;
+        }
+        
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      // 未精算リストの描画
       const historyList = document.getElementById('historyList');
       historyList.innerHTML = '';
 
-      if (transactions.length === 0) {
+      if (sortedTransactions.length === 0) {
         historyList.innerHTML = '<li style="justify-content: center; color: #888;">未精算の記録はありません</li>';
       }
 
-      transactions.forEach((t) => {
-        const half = t.amount / 2;
-        if (t.splitType === 'EQUAL') {
-          if (t.payer === 'ゆうすけ') balance += half;
-          if (t.payer === 'うらら') balance -= half;
-        } else {
-          if (t.payer === 'ゆうすけ') balance += t.amount;
-          if (t.payer === 'うらら') balance -= t.amount;
-        }
-
+      sortedTransactions.forEach((t) => {
         const li = document.createElement('li');
-        const typeText = t.splitType === 'EQUAL' ? '折半' : '全額立替';
+        const typeText = getRatioDisplayText(t.splitType, t.ratioY, t.ratioU);
         
         li.innerHTML = `
           <div class="item-info">
@@ -423,6 +673,7 @@
         historyList.appendChild(li);
       });
 
+      // 清算結果の描画
       const resultBox = document.getElementById('resultBox');
       if (balance > 0) {
         resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
@@ -432,6 +683,7 @@
         resultBox.textContent = `貸し借りなし（清算済み）`;
       }
 
+      // 精算済みリストの描画
       const settledList = document.getElementById('settledHistoryList');
       settledList.innerHTML = '';
 
@@ -444,7 +696,7 @@
           div.className = 'settlement-block';
           
           let itemsHtml = group.items.map(i => {
-            const typeText = i.splitType === 'EQUAL' ? '折半' : '全額立替';
+            const typeText = getRatioDisplayText(i.splitType, i.ratioY, i.ratioU);
             return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
           }).join('<br>');
 
