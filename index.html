@@ -382,6 +382,61 @@
     </div>
   </div>
 
+  <!-- 4. テンプレート直接編集用モーダル -->
+  <div class="modal-overlay" id="templateEditModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>テンプレートの編集</h3>
+        <button class="btn-close" onclick="closeTemplateEditModal()">✕</button>
+      </div>
+      <div class="form-group">
+        <input type="hidden" id="tmplEditId">
+
+        <label>誰が払う？</label>
+        <div class="radio-group">
+          <input type="radio" id="tmplEditPayerYusuke" name="tmplEditPayer" value="ゆうすけ">
+          <label for="tmplEditPayerYusuke">ゆうすけ</label>
+          <input type="radio" id="tmplEditPayerUrara" name="tmplEditPayer" value="うらら">
+          <label for="tmplEditPayerUrara">うらら</label>
+        </div>
+
+        <label>項目（カテゴリー）</label>
+        <select id="tmplEditCategory"></select>
+
+        <label>目安の金額（円）</label>
+        <input type="number" id="tmplEditAmount" placeholder="例: 80000（毎回変わる場合は空欄でも可）">
+
+        <label>詳細・メモ（任意）</label>
+        <input type="text" id="tmplEditMemo" placeholder="例: 電気代・ガス代">
+
+        <div id="tmplEditSimpleSplitArea">
+          <label>割り方</label>
+          <select id="tmplEditSplitType">
+            <option value="EQUAL">折半</option>
+            <option value="PAY_ALL">全額立替</option>
+          </select>
+        </div>
+
+        <div id="tmplEditCustomSplitArea" style="display: none;">
+          <label>割り方</label>
+          <div class="custom-ratio-inputs">
+            <span>ゆうすけ</span>
+            <input type="number" id="tmplEditRatioYusuke" value="1" min="0">
+            <span>：</span>
+            <span>うらら</span>
+            <input type="number" id="tmplEditRatioUrara" value="1" min="0">
+          </div>
+        </div>
+
+        <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
+          <button type="button" class="btn-link" id="tmplEditToggleRatioBtn" onclick="toggleRatio('tmplEdit')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
+        </div>
+
+        <button class="btn-submit" onclick="saveEditedTemplate()" style="margin-top: 10px;">テンプレートを変更する</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyB9PUPbJLyY3JM_Hv7Nrr9f62iJW8edulU",
@@ -407,6 +462,7 @@
     let isEditCustomRatio = false;
     let isTmplCustomRatio = false;
     let isTmplUseCustomRatio = false;
+    let isTmplEditCustomRatio = false;
 
     function setDefaultDate() {
       const today = new Date();
@@ -423,11 +479,13 @@
         isTmplCustomRatio = !isTmplCustomRatio;
       } else if (prefix === 'tmplUse') {
         isTmplUseCustomRatio = !isTmplUseCustomRatio;
+      } else if (prefix === 'tmplEdit') {
+        isTmplEditCustomRatio = !isTmplEditCustomRatio;
       } else {
         isCustomRatio = !isCustomRatio;
       }
       
-      const currentMode = prefix === 'edit' ? isEditCustomRatio : (prefix === 'tmpl' ? isTmplCustomRatio : (prefix === 'tmplUse' ? isTmplUseCustomRatio : isCustomRatio));
+      const currentMode = prefix === 'edit' ? isEditCustomRatio : (prefix === 'tmpl' ? isTmplCustomRatio : (prefix === 'tmplUse' ? isTmplUseCustomRatio : (prefix === 'tmplEdit' ? isTmplEditCustomRatio : isCustomRatio)));
       const simpleArea = document.getElementById(prefix ? `${prefix}SimpleSplitArea` : 'simpleSplitArea');
       const customArea = document.getElementById(prefix ? `${prefix}CustomSplitArea` : 'customSplitArea');
       const btn = document.getElementById(prefix ? `${prefix}ToggleRatioBtn` : 'toggleRatioBtn');
@@ -494,7 +552,7 @@
     }
 
     function updateCategorySelect() {
-      const selects = ['category', 'editCategory', 'tmplCategory', 'tmplUseCategory'];
+      const selects = ['category', 'editCategory', 'tmplCategory', 'tmplUseCategory', 'tmplEditCategory'];
       selects.forEach(id => {
         const el = document.getElementById(id);
         if (!el) return;
@@ -698,6 +756,9 @@
     function closeTemplateUseModal() {
       document.getElementById('templateUseModal').classList.remove('open');
     }
+    function closeTemplateEditModal() {
+      document.getElementById('templateEditModal').classList.remove('open');
+    }
 
     // テンプレート一覧を表示（選ぶ画面）
     function renderTemplateSelectList() {
@@ -810,7 +871,10 @@
             <div class="item-title">${item.title} (${amtText})</div>
             <div class="item-sub">${item.payer}が支払い / ${typeText}</div>
           </div>
-          <button class="btn-delete" onclick="deleteTemplate('${item.id}')">削除</button>
+          <div class="btn-action-group">
+            <button class="btn-edit" onclick="openTemplateEditModal('${item.id}')">編集</button>
+            <button class="btn-delete" onclick="deleteTemplate('${item.id}')">削除</button>
+          </div>
         `;
         list.appendChild(li);
       });
@@ -840,6 +904,63 @@
 
       document.getElementById('tmplAmount').value = '';
       document.getElementById('tmplMemo').value = '';
+    }
+
+    // テンプレート直接編集モーダルを開く
+    function openTemplateEditModal(id) {
+      const item = templates.find(t => t.id === id);
+      if (!item) return;
+
+      document.getElementById('tmplEditId').value = item.id;
+      
+      const payerInput = document.querySelector(`input[name="tmplEditPayer"][value="${item.payer}"]`);
+      if (payerInput) payerInput.checked = true;
+
+      document.getElementById('tmplEditCategory').value = item.category || categories[0];
+      document.getElementById('tmplEditAmount').value = item.amount || '';
+      document.getElementById('tmplEditMemo').value = item.memo || '';
+
+      const splitType = item.splitType || 'EQUAL';
+      if (splitType === 'CUSTOM') {
+        isTmplEditCustomRatio = true;
+        document.getElementById('tmplEditRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
+        document.getElementById('tmplEditRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
+      } else {
+        isTmplEditCustomRatio = false;
+        document.getElementById('tmplEditSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
+      }
+
+      document.getElementById('tmplEditSimpleSplitArea').style.display = isTmplEditCustomRatio ? 'none' : 'block';
+      document.getElementById('tmplEditCustomSplitArea').style.display = isTmplEditCustomRatio ? 'block' : 'none';
+      document.getElementById('tmplEditToggleRatioBtn').textContent = isTmplEditCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
+
+      document.getElementById('templateEditModal').classList.add('open');
+    }
+
+    // テンプレート変更を保存する
+    async function saveEditedTemplate() {
+      const id = document.getElementById('tmplEditId').value;
+      const payer = document.querySelector('input[name="tmplEditPayer"]:checked').value;
+      const category = document.getElementById('tmplEditCategory').value;
+      const amount = Number(document.getElementById('tmplEditAmount').value) || 0;
+      const memo = document.getElementById('tmplEditMemo').value;
+      const title = memo ? `${category}（${memo}）` : category;
+
+      let splitType, ratioY = 1, ratioU = 1;
+      if (isTmplEditCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('tmplEditRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('tmplEditRatioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('tmplEditSplitType').value;
+      }
+
+      await db.collection('fixedCosts').doc(id).update({
+        payer, category, memo, amount, title, splitType, ratioY, ratioU
+      });
+
+      closeTemplateEditModal();
     }
 
     async function deleteTemplate(id) {
