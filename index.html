@@ -95,8 +95,16 @@
 
       <label>割り方</label>
       <select id="splitType">
-        <option value="EQUAL">折半（割り勘）</option>
-        <option value="PAY_ALL">全額立替</option>
+        <option value="EQUAL">折半（5:5）</option>
+        <option value="RATIO_9_1">ゆうすけ9：うらら1</option>
+        <option value="RATIO_8_2">ゆうすけ8：うらら2</option>
+        <option value="RATIO_7_3">ゆうすけ7：うらら3</option>
+        <option value="RATIO_6_4">ゆうすけ6：うらら4</option>
+        <option value="RATIO_4_6">ゆうすけ4：うらら6</option>
+        <option value="RATIO_3_7">ゆうすけ3：うらら7</option>
+        <option value="RATIO_2_8">ゆうすけ2：うらら8</option>
+        <option value="RATIO_1_9">ゆうすけ1：うらら9</option>
+        <option value="PAY_ALL">全額立替（相手が100%負担）</option>
       </select>
 
       <button class="btn-submit" onclick="addTransaction()">記録を追加する</button>
@@ -172,8 +180,16 @@
 
         <label>割り方</label>
         <select id="editSplitType">
-          <option value="EQUAL">折半（割り勘）</option>
-          <option value="PAY_ALL">全額立替</option>
+          <option value="EQUAL">折半（5:5）</option>
+          <option value="RATIO_9_1">ゆうすけ9：うらら1</option>
+          <option value="RATIO_8_2">ゆうすけ8：うらら2</option>
+          <option value="RATIO_7_3">ゆうすけ7：うらら3</option>
+          <option value="RATIO_6_4">ゆうすけ6：うらら4</option>
+          <option value="RATIO_4_6">ゆうすけ4：うらら6</option>
+          <option value="RATIO_3_7">ゆうすけ3：うらら7</option>
+          <option value="RATIO_2_8">ゆうすけ2：うらら8</option>
+          <option value="RATIO_1_9">ゆうすけ1：うらら9</option>
+          <option value="PAY_ALL">全額立替（相手が100%負担）</option>
         </select>
 
         <button class="btn-submit" onclick="saveEditedTransaction()" style="margin-top: 10px;">変更を保存する</button>
@@ -199,6 +215,20 @@
     let transactions = [];
     let settledGroups = [];
     let categories = defaultCategories;
+
+    // 割合表示用のマップ
+    const splitRatioMap = {
+      'RATIO_9_1': 'ゆ9:う1',
+      'RATIO_8_2': 'ゆ8:う2',
+      'RATIO_7_3': 'ゆ7:う3',
+      'RATIO_6_4': 'ゆ6:う4',
+      'EQUAL': '折半',
+      'RATIO_4_6': 'ゆ4:う6',
+      'RATIO_3_7': 'ゆ3:う7',
+      'RATIO_2_8': 'ゆ2:う8',
+      'RATIO_1_9': 'ゆ1:う9',
+      'PAY_ALL': '全額立替'
+    };
 
     function setDefaultDate() {
       const today = new Date();
@@ -230,7 +260,6 @@
         }
         updateCategorySelect();
         
-        // モーダルが開いている場合は表示を更新
         if (document.getElementById('categoryModal').classList.contains('open')) {
           renderCategoryModalList();
         }
@@ -241,7 +270,6 @@
       const categorySelect = document.getElementById('category');
       const editCategorySelect = document.getElementById('editCategory');
       
-      // 現在選択されている値を保持
       const currentVal = categorySelect.value;
       const currentEditVal = editCategorySelect.value;
       
@@ -295,12 +323,10 @@
       if (newIndex < 0 || newIndex >= categories.length) return;
       
       const newCategories = [...categories];
-      // 順番を入れ替える
       const temp = newCategories[index];
       newCategories[index] = newCategories[newIndex];
       newCategories[newIndex] = temp;
       
-      // Firestoreを更新（onSnapshotが反応して自動的に画面も再描画されます）
       await db.collection('settings').doc('categories').set({ list: newCategories });
     }
 
@@ -355,7 +381,7 @@
       document.getElementById('editCategory').value = item.category || categories[0];
       document.getElementById('editAmount').value = item.amount;
       document.getElementById('editMemo').value = item.memo || '';
-      document.getElementById('editSplitType').value = item.splitType;
+      document.getElementById('editSplitType').value = item.splitType || 'EQUAL';
 
       document.getElementById('editModal').classList.add('open');
     }
@@ -421,7 +447,6 @@
       if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
         const settledDate = new Date().toLocaleString('ja-JP');
         
-        // 並び替え状態に関わらず、登録日時の古い順に保存する
         const itemsToSave = [...transactions].sort((a, b) => a.createdAt - b.createdAt);
         
         await db.collection('settledGroups').add({
@@ -442,15 +467,36 @@
     function updateView() {
       let balance = 0;
       
-      // 合計金額の計算（並べ替え前に行う）
+      // 合計金額の計算（負担割合の反映）
       transactions.forEach((t) => {
-        const half = t.amount / 2;
-        if (t.splitType === 'EQUAL') {
-          if (t.payer === 'ゆうすけ') balance += half;
-          if (t.payer === 'うらら') balance -= half;
-        } else {
-          if (t.payer === 'ゆうすけ') balance += t.amount;
-          if (t.payer === 'うらら') balance -= t.amount;
+        let yusukeRatio = 5;
+        let uraraRatio = 5;
+
+        switch (t.splitType) {
+          case 'RATIO_9_1': yusukeRatio = 9; uraraRatio = 1; break;
+          case 'RATIO_8_2': yusukeRatio = 8; uraraRatio = 2; break;
+          case 'RATIO_7_3': yusukeRatio = 7; uraraRatio = 3; break;
+          case 'RATIO_6_4': yusukeRatio = 6; uraraRatio = 4; break;
+          case 'EQUAL':     yusukeRatio = 5; uraraRatio = 5; break;
+          case 'RATIO_4_6': yusukeRatio = 4; uraraRatio = 6; break;
+          case 'RATIO_3_7': yusukeRatio = 3; uraraRatio = 7; break;
+          case 'RATIO_2_8': yusukeRatio = 2; uraraRatio = 8; break;
+          case 'RATIO_1_9': yusukeRatio = 1; uraraRatio = 9; break;
+          case 'PAY_ALL':
+            // 立て替えた人＝負担額0、立て替えられた人＝負担額10
+            if (t.payer === 'ゆうすけ') { yusukeRatio = 0; uraraRatio = 10; }
+            else { yusukeRatio = 10; uraraRatio = 0; }
+            break;
+          default:
+            // 過去データ（EQUALがない等）への保険
+            yusukeRatio = 5; uraraRatio = 5;
+        }
+
+        // 払った人が、相手の負担分（金額×相手の割合/10）を受け取る
+        if (t.payer === 'ゆうすけ') {
+          balance += Math.round((t.amount * uraraRatio) / 10);
+        } else if (t.payer === 'うらら') {
+          balance -= Math.round((t.amount * yusukeRatio) / 10);
         }
       });
 
@@ -463,7 +509,6 @@
         let valA = a[sortKey];
         let valB = b[sortKey];
         
-        // 発生日の場合は rawDate (YYYY-MM-DD) を使うと正確
         if (sortKey === 'date') {
           valA = a.rawDate || a.date;
           valB = b.rawDate || b.date;
@@ -484,7 +529,7 @@
 
       sortedTransactions.forEach((t) => {
         const li = document.createElement('li');
-        const typeText = t.splitType === 'EQUAL' ? '折半' : '全額立替';
+        const typeText = splitRatioMap[t.splitType] || '折半';
         
         li.innerHTML = `
           <div class="item-info">
@@ -522,7 +567,7 @@
           div.className = 'settlement-block';
           
           let itemsHtml = group.items.map(i => {
-            const typeText = i.splitType === 'EQUAL' ? '折半' : '全額立替';
+            const typeText = splitRatioMap[i.splitType] || '折半';
             return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
           }).join('<br>');
 
