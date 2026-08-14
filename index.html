@@ -1,10 +1,587 @@
-async function settleUp() {
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>あだちとうららの立替メモ</title>
+
+  <!-- Firebase (SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; max-width: 450px; margin: 15px auto; padding: 15px; background-color: #f8f9fa; }
+    .card { background: white; padding: 15px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); margin-bottom: 15px; }
+    h2, h3 { text-align: center; color: #333; margin-top: 5px; }
+    .result { font-size: 1.1em; font-weight: bold; background: #eef6ff; color: #0056b3; padding: 15px; text-align: center; border-radius: 8px; margin-bottom: 10px; border: 1px solid #bce0fd; }
+    .form-group { margin-bottom: 10px; }
+    .label-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+    label { font-size: 0.85em; color: #666; font-weight: bold; }
+    .btn-link { background: none; border: none; color: #007bff; font-size: 0.8em; cursor: pointer; text-decoration: underline; padding: 0; }
+    input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
+    .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
+    .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
+    .btn-action-group { display: flex; gap: 4px; }
+    .btn-edit { background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
+    .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
+    .btn-move { background: #e9ecef; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
+    .btn-move:disabled { opacity: 0.4; cursor: not-allowed; }
+    ul { list-style: none; padding: 0; margin: 0; }
+    li { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
+    .item-info { flex-grow: 1; padding-right: 8px; }
+    .item-title { font-weight: bold; color: #333; }
+    .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
+    
+    /* 支払い者ボタン（ラジオボタン） */
+    .radio-group { display: flex; gap: 10px; margin-bottom: 10px; }
+    .radio-group input[type="radio"] { display: none; }
+    .radio-group label {
+      flex: 1;
+      text-align: center;
+      padding: 10px;
+      background: #e9ecef;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+      color: #495057;
+      border: 2px solid transparent;
+      transition: 0.2s;
+      margin-bottom: 0;
+    }
+    .radio-group input[type="radio"]:checked + label {
+      background: #eef6ff;
+      border-color: #007bff;
+      color: #007bff;
+    }
+
+    /* 割合カスタム入力 */
+    .custom-ratio-inputs { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; background: #f8f9fa; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
+    .custom-ratio-inputs input { margin-bottom: 0; width: 60px; text-align: center; font-size: 1.1em; font-weight: bold; }
+    .custom-ratio-inputs span { font-weight: bold; color: #555; font-size: 0.9em; }
+
+    /* 並べ替えコントロール */
+    .sort-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; background: #f1f3f5; padding: 8px 12px; border-radius: 8px; font-size: 0.85em; }
+    .sort-controls label { margin-bottom: 0; font-weight: normal; }
+    .sort-controls select { margin-bottom: 0; width: auto; padding: 4px 8px; font-size: 0.9em; flex-grow: 1; }
+
+    /* アコーディオン */
+    .settlement-block { background: #f1f3f5; border-radius: 8px; margin-bottom: 10px; font-size: 0.85em; overflow: hidden; border: 1px solid #e9ecef; }
+    .settlement-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; cursor: pointer; user-select: none; transition: background 0.2s; }
+    .settlement-header:hover { background: #e9ecef; }
+    .settlement-title-info { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #495057; }
+    .accordion-icon { font-size: 0.75em; color: #6c757d; }
+    .settlement-details { padding: 12px; border-top: 1px dashed #dee2e6; background: #fafafa; display: none; color: #555; }
+    .settlement-details.open { display: block; }
+
+    /* モーダル */
+    .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 1000; }
+    .modal-overlay.open { display: flex; }
+    .modal-content { background: white; width: 90%; max-width: 400px; padding: 20px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); max-height: 85vh; overflow-y: auto; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+    .modal-header h3 { margin: 0; font-size: 1.1em; }
+    .btn-close { background: none; border: none; font-size: 1.2em; cursor: pointer; color: #888; }
+    .category-add-box { display: flex; gap: 6px; margin-bottom: 15px; }
+    .category-add-box input { margin-bottom: 0; flex-grow: 1; }
+    .category-add-box button { padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; }
+    .category-list li { padding: 8px 0; }
+  </style>
+</head>
+<body>
+
+  <h2>あだちとうららの立替メモ</h2>
+
+  <!-- 現在の清算結果 -->
+  <div class="card">
+    <div class="result" id="resultBox">通信中...</div>
+    <button class="btn-settle" onclick="settleUp()">精算を完了して清算額をリセット</button>
+  </div>
+
+  <!-- 入力フォーム -->
+  <div class="card">
+    <div class="form-group">
+      <label>発生日</label>
+      <input type="date" id="dateInput">
+
+      <label>誰が払った？</label>
+      <div class="radio-group">
+        <input type="radio" id="payerYusuke" name="payer" value="ゆうすけ" checked>
+        <label for="payerYusuke">ゆうすけ</label>
+        
+        <input type="radio" id="payerUrara" name="payer" value="うらら">
+        <label for="payerUrara">うらら</label>
+      </div>
+
+      <div class="label-container">
+        <label>項目（カテゴリー）</label>
+        <button type="button" class="btn-link" onclick="openCategoryModal()">⚙️ 項目を編集</button>
+      </div>
+      <select id="category"></select>
+
+      <label>金額（円）</label>
+      <input type="number" id="amount" placeholder="例: 3000">
+
+      <label>詳細・メモ（任意）</label>
+      <input type="text" id="title" placeholder="例: スーパーでの買い物">
+
+      <div id="simpleSplitArea">
+        <label>割り方</label>
+        <select id="splitType">
+          <option value="EQUAL">折半</option>
+          <option value="PAY_ALL">全額立替</option>
+        </select>
+      </div>
+
+      <div id="customSplitArea" style="display: none;">
+        <label>割り方</label>
+        <div class="custom-ratio-inputs">
+          <span>ゆうすけ</span>
+          <input type="number" id="ratioYusuke" value="1" min="0">
+          <span>：</span>
+          <span>うらら</span>
+          <input type="number" id="ratioUrara" value="1" min="0">
+        </div>
+      </div>
+
+      <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
+        <button type="button" class="btn-link" id="toggleRatioBtn" onclick="toggleRatio('')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
+      </div>
+
+      <button class="btn-submit" onclick="addTransaction()">記録を追加する</button>
+    </div>
+  </div>
+
+  <!-- 未精算の履歴 -->
+  <div class="card">
+    <h3>未精算の記録</h3>
+    <div class="sort-controls">
+      <label>並び替え:</label>
+      <select id="sortKey" onchange="updateView()">
+        <option value="createdAt" selected>登録日時</option>
+        <option value="date">発生日</option>
+        <option value="category">項目</option>
+      </select>
+      <select id="sortOrder" onchange="updateView()">
+        <option value="desc" selected>降順 ▼</option>
+        <option value="asc">昇順 ▲</option>
+      </select>
+    </div>
+    <ul id="historyList"></ul>
+  </div>
+
+  <!-- 精算済みの過去ログ -->
+  <div class="card">
+    <h3>精算済みの過去履歴</h3>
+    <div id="settledHistoryList"></div>
+  </div>
+
+  <!-- カテゴリー編集用モーダル -->
+  <div class="modal-overlay" id="categoryModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>項目の編集</h3>
+        <button class="btn-close" onclick="closeCategoryModal()">✕</button>
+      </div>
+      <div class="category-add-box">
+        <input type="text" id="newCategoryInput" placeholder="新しい項目名">
+        <button onclick="addCategory()">追加</button>
+      </div>
+      <ul class="category-list" id="modalCategoryList"></ul>
+    </div>
+  </div>
+
+  <!-- 記録の編集用モーダル -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>記録の編集</h3>
+        <button class="btn-close" onclick="closeEditModal()">✕</button>
+      </div>
+      <div class="form-group">
+        <input type="hidden" id="editId">
+
+        <label>発生日</label>
+        <input type="date" id="editDateInput">
+
+        <label>誰が払った？</label>
+        <div class="radio-group">
+          <input type="radio" id="editPayerYusuke" name="editPayer" value="ゆうすけ">
+          <label for="editPayerYusuke">ゆうすけ</label>
+          
+          <input type="radio" id="editPayerUrara" name="editPayer" value="うらら">
+          <label for="editPayerUrara">うらら</label>
+        </div>
+
+        <label>項目（カテゴリー）</label>
+        <select id="editCategory"></select>
+
+        <label>金額（円）</label>
+        <input type="number" id="editAmount">
+
+        <label>詳細・メモ（任意）</label>
+        <input type="text" id="editMemo" placeholder="例: スーパーでの買い物">
+
+        <div id="editSimpleSplitArea">
+          <label>割り方</label>
+          <select id="editSplitType">
+            <option value="EQUAL">折半</option>
+            <option value="PAY_ALL">全額立替</option>
+          </select>
+        </div>
+
+        <div id="editCustomSplitArea" style="display: none;">
+          <label>割り方</label>
+          <div class="custom-ratio-inputs">
+            <span>ゆうすけ</span>
+            <input type="number" id="editRatioYusuke" value="1" min="0">
+            <span>：</span>
+            <span>うらら</span>
+            <input type="number" id="editRatioUrara" value="1" min="0">
+          </div>
+        </div>
+
+        <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
+          <button type="button" class="btn-link" id="editToggleRatioBtn" onclick="toggleRatio('edit')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
+        </div>
+
+        <button class="btn-submit" onclick="saveEditedTransaction()" style="margin-top: 10px;">変更を保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyB9PUPbJLyY3JM_Hv7Nrr9f62iJW8edulU",
+      authDomain: "pair-app-61a15.firebaseapp.com",
+      databaseURL: "https://pair-app-61a15-default-rtdb.firebaseio.com",
+      projectId: "pair-app-61a15",
+      storageBucket: "pair-app-61a15.firebasestorage.app",
+      messagingSenderId: "547054744435",
+      appId: "1:547054744435:web:8988a8932afaf118e10b06"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱費", "交通費", "娯楽・レジャー", "旅行", "その他"];
+    let transactions = [];
+    let settledGroups = [];
+    let categories = defaultCategories;
+    
+    // 割合切り替えのステータス管理
+    let isCustomRatio = false;
+    let isEditCustomRatio = false;
+
+    function setDefaultDate() {
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById('dateInput').value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    function toggleRatio(prefix) {
+      const isEdit = prefix === 'edit';
+      
+      if (isEdit) {
+        isEditCustomRatio = !isEditCustomRatio;
+      } else {
+        isCustomRatio = !isCustomRatio;
+      }
+      
+      const currentMode = isEdit ? isEditCustomRatio : isCustomRatio;
+      const simpleArea = document.getElementById(isEdit ? 'editSimpleSplitArea' : 'simpleSplitArea');
+      const customArea = document.getElementById(isEdit ? 'editCustomSplitArea' : 'customSplitArea');
+      const btn = document.getElementById(isEdit ? 'editToggleRatioBtn' : 'toggleRatioBtn');
+
+      if (currentMode) {
+        simpleArea.style.display = 'none';
+        customArea.style.display = 'block';
+        btn.textContent = 'ー シンプルに戻す';
+      } else {
+        simpleArea.style.display = 'block';
+        customArea.style.display = 'none';
+        btn.textContent = '＋ 割合を細かく設定';
+      }
+    }
+
+    function getRatioDisplayText(splitType, ratioY, ratioU) {
+      if (splitType === 'CUSTOM') {
+        return `ゆ${ratioY}：う${ratioU}`;
+      } else if (splitType === 'PAY_ALL') {
+        return '全額立替';
+      } else if (splitType === 'EQUAL') {
+        return '折半';
+      } else if (splitType && splitType.startsWith('RATIO_')) {
+        // 過去のプルダウン仕様データの互換対応
+        const parts = splitType.split('_');
+        return `ゆ${parts[1]}：う${parts[2]}`;
+      }
+      return '折半';
+    }
+
+    function initRealtimeSync() {
+      db.collection('transactions').onSnapshot(snapshot => {
+        transactions = [];
+        snapshot.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
+        updateView();
+      });
+
+      db.collection('settledGroups').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        settledGroups = [];
+        snapshot.forEach(doc => settledGroups.push({ id: doc.id, ...doc.data() }));
+        updateView();
+      });
+
+      db.collection('settings').doc('categories').onSnapshot(doc => {
+        if (doc.exists && doc.data().list) {
+          categories = doc.data().list;
+        } else {
+          categories = defaultCategories;
+          db.collection('settings').doc('categories').set({ list: defaultCategories });
+        }
+        updateCategorySelect();
+        
+        if (document.getElementById('categoryModal').classList.contains('open')) {
+          renderCategoryModalList();
+        }
+      });
+    }
+
+    function updateCategorySelect() {
+      const categorySelect = document.getElementById('category');
+      const editCategorySelect = document.getElementById('editCategory');
+      
+      const currentVal = categorySelect.value;
+      const currentEditVal = editCategorySelect.value;
+      
+      categorySelect.innerHTML = '';
+      editCategorySelect.innerHTML = '';
+
+      categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        categorySelect.appendChild(option);
+
+        const editOption = document.createElement('option');
+        editOption.value = cat;
+        editOption.textContent = cat;
+        editCategorySelect.appendChild(editOption);
+      });
+      
+      if (categories.includes(currentVal)) categorySelect.value = currentVal;
+      if (categories.includes(currentEditVal)) editCategorySelect.value = currentEditVal;
+    }
+
+    function openCategoryModal() {
+      renderCategoryModalList();
+      document.getElementById('categoryModal').classList.add('open');
+    }
+
+    function closeCategoryModal() {
+      document.getElementById('categoryModal').classList.remove('open');
+    }
+
+    function renderCategoryModalList() {
+      const modalList = document.getElementById('modalCategoryList');
+      modalList.innerHTML = '';
+      categories.forEach((cat, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <span>${cat}</span>
+          <div class="btn-action-group">
+            <button class="btn-move" onclick="moveCategory(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
+            <button class="btn-move" onclick="moveCategory(${index}, 1)" ${index === categories.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
+          </div>
+        `;
+        modalList.appendChild(li);
+      });
+    }
+
+    async function moveCategory(index, direction) {
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= categories.length) return;
+      
+      const newCategories = [...categories];
+      const temp = newCategories[index];
+      newCategories[index] = newCategories[newIndex];
+      newCategories[newIndex] = temp;
+      
+      await db.collection('settings').doc('categories').set({ list: newCategories });
+    }
+
+    async function addCategory() {
+      const input = document.getElementById('newCategoryInput');
+      const name = input.value.trim();
+      if (!name) return;
+      if (categories.includes(name)) return alert('すでに存在する項目です');
+      const newCategories = [...categories, name];
+      await db.collection('settings').doc('categories').set({ list: newCategories });
+      input.value = '';
+    }
+
+    async function deleteCategory(index) {
+      if (categories.length <= 1) return alert('項目は最低1つ残す必要があります');
+      if (confirm(`「${categories[index]}」を削除しますか？`)) {
+        const newCategories = categories.filter((_, i) => i !== index);
+        await db.collection('settings').doc('categories').set({ list: newCategories });
+      }
+    }
+
+    async function addTransaction() {
+      const dateVal = document.getElementById('dateInput').value;
+      const payer = document.querySelector('input[name="payer"]:checked').value;
+      const category = document.getElementById('category').value;
+      const amount = Number(document.getElementById('amount').value);
+      const memo = document.getElementById('title').value;
+      const title = memo ? `${category}（${memo}）` : category;
+      
+      let splitType, ratioY = 1, ratioU = 1;
+      
+      if (isCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('ratioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('ratioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('splitType').value;
+      }
+
+      if (!dateVal) return alert('発生日を選択してください');
+      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
+
+      const formattedDate = dateVal.replace(/-/g, '/');
+
+      await db.collection('transactions').add({
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        date: formattedDate, rawDate: dateVal, createdAt: Date.now()
+      });
+
+      // 入力フォームをリセット
+      document.getElementById('amount').value = '';
+      document.getElementById('title').value = '';
+      
+      if (isCustomRatio) {
+        isCustomRatio = false;
+        document.getElementById('simpleSplitArea').style.display = 'block';
+        document.getElementById('customSplitArea').style.display = 'none';
+        document.getElementById('toggleRatioBtn').textContent = '＋ 割合を細かく設定';
+      }
+      document.getElementById('splitType').value = 'EQUAL';
+      document.getElementById('ratioYusuke').value = '1';
+      document.getElementById('ratioUrara').value = '1';
+      
+      // ラジオボタンをゆうすけに戻す
+      document.getElementById('payerYusuke').checked = true;
+    }
+
+    function openEditModal(id) {
+      const item = transactions.find(t => t.id === id);
+      if (!item) return;
+
+      document.getElementById('editId').value = item.id;
+      document.getElementById('editDateInput').value = item.rawDate || item.date.replace(/\//g, '-');
+      
+      // ラジオボタンの選択状態を反映
+      const payerInput = document.querySelector(`input[name="editPayer"][value="${item.payer}"]`);
+      if (payerInput) payerInput.checked = true;
+
+      document.getElementById('editCategory').value = item.category || categories[0];
+      document.getElementById('editAmount').value = item.amount;
+      document.getElementById('editMemo').value = item.memo || '';
+      
+      const splitType = item.splitType || 'EQUAL';
+      
+      // カスタム割合かどうかでUIを切り替え
+      if (splitType === 'CUSTOM') {
+        isEditCustomRatio = true;
+        document.getElementById('editRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
+        document.getElementById('editRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
+      } else {
+        isEditCustomRatio = false;
+        document.getElementById('editSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
+      }
+
+      document.getElementById('editSimpleSplitArea').style.display = isEditCustomRatio ? 'none' : 'block';
+      document.getElementById('editCustomSplitArea').style.display = isEditCustomRatio ? 'block' : 'none';
+      document.getElementById('editToggleRatioBtn').textContent = isEditCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
+
+      document.getElementById('editModal').classList.add('open');
+    }
+
+    function closeEditModal() {
+      document.getElementById('editModal').classList.remove('open');
+    }
+
+    async function saveEditedTransaction() {
+      const id = document.getElementById('editId').value;
+      const dateVal = document.getElementById('editDateInput').value;
+      const payer = document.querySelector('input[name="editPayer"]:checked').value;
+      const category = document.getElementById('editCategory').value;
+      const amount = Number(document.getElementById('editAmount').value);
+      const memo = document.getElementById('editMemo').value;
+      
+      let splitType, ratioY = 1, ratioU = 1;
+      
+      if (isEditCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('editRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('editRatioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('editSplitType').value;
+      }
+
+      if (!dateVal) return alert('発生日を選択してください');
+      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
+
+      const formattedDate = dateVal.replace(/-/g, '/');
+      const title = memo ? `${category}（${memo}）` : category;
+
+      await db.collection('transactions').doc(id).update({
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        date: formattedDate, rawDate: dateVal
+      });
+
+      closeEditModal();
+    }
+
+    async function deleteTransaction(id) {
+      if (confirm('この記録を削除しますか？')) {
+        await db.collection('transactions').doc(id).delete();
+      }
+    }
+
+    async function deleteSettledGroup(id, event) {
+      event.stopPropagation();
+      if (confirm('この精算履歴を削除しますか？（復元はできません）')) {
+        await db.collection('settledGroups').doc(id).delete();
+      }
+    }
+
+    function toggleAccordion(id) {
+      const details = document.getElementById(`details-${id}`);
+      const icon = document.getElementById(`icon-${id}`);
+      if (details) {
+        const isOpen = details.classList.contains('open');
+        if (isOpen) {
+          details.classList.remove('open');
+          icon.textContent = '▶';
+        } else {
+          details.classList.add('open');
+          icon.textContent = '▼';
+        }
+      }
+    }
+
+    async function settleUp() {
       if (transactions.length === 0) return alert('未精算の記録がありません。');
 
       if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
         const settledDate = new Date().toLocaleString('ja-JP');
         
-        // --- ここから追加: 精算時点での最終精算額を計算 ---
+        // 精算時点での最終精算額を計算
         let balance = 0;
         transactions.forEach((t) => {
           let yRatio = 1, uRatio = 1;
@@ -36,14 +613,13 @@ async function settleUp() {
         } else if (balance < 0) {
           summaryText = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円`;
         }
-        // --- ここまで ---
 
         const itemsToSave = [...transactions].sort((a, b) => a.createdAt - b.createdAt);
         
         await db.collection('settledGroups').add({
           date: settledDate,
           items: itemsToSave,
-          summaryText: summaryText, // ← 清算結果テキストを保存
+          summaryText: summaryText,
           createdAt: Date.now()
         });
 
@@ -55,3 +631,137 @@ async function settleUp() {
         await batch.commit();
       }
     }
+
+    function updateView() {
+      let balance = 0;
+      
+      // 合計金額の計算（負担割合の反映）
+      transactions.forEach((t) => {
+        let yRatio = 1, uRatio = 1;
+
+        if (t.splitType === 'CUSTOM') {
+          yRatio = t.ratioY !== undefined ? t.ratioY : 1;
+          uRatio = t.ratioU !== undefined ? t.ratioU : 1;
+        } else if (t.splitType === 'PAY_ALL') {
+          if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
+          else { yRatio = 1; uRatio = 0; }
+        } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
+          const parts = t.splitType.split('_');
+          yRatio = parseInt(parts[1], 10);
+          uRatio = parseInt(parts[2], 10);
+        }
+
+        const totalRatio = yRatio + uRatio;
+        if (totalRatio > 0) {
+          if (t.payer === 'ゆうすけ') {
+            balance += Math.round((t.amount * uRatio) / totalRatio);
+          } else if (t.payer === 'うらら') {
+            balance -= Math.round((t.amount * yRatio) / totalRatio);
+          }
+        }
+      });
+
+      // 並べ替え処理
+      const sortKey = document.getElementById('sortKey').value;
+      const sortOrder = document.getElementById('sortOrder').value;
+      
+      let sortedTransactions = [...transactions];
+      sortedTransactions.sort((a, b) => {
+        let valA = a[sortKey];
+        let valB = b[sortKey];
+        
+        if (sortKey === 'date') {
+          valA = a.rawDate || a.date;
+          valB = b.rawDate || b.date;
+        }
+        
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      // 未精算リストの描画
+      const historyList = document.getElementById('historyList');
+      historyList.innerHTML = '';
+
+      if (sortedTransactions.length === 0) {
+        historyList.innerHTML = '<li style="justify-content: center; color: #888;">未精算の記録はありません</li>';
+      }
+
+      sortedTransactions.forEach((t) => {
+        const li = document.createElement('li');
+        const typeText = getRatioDisplayText(t.splitType, t.ratioY, t.ratioU);
+        
+        li.innerHTML = `
+          <div class="item-info">
+            <div class="item-title">${t.title} - ${t.amount.toLocaleString()}円</div>
+            <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText})</div>
+          </div>
+          <div class="btn-action-group">
+            <button class="btn-edit" onclick="openEditModal('${t.id}')">編集</button>
+            <button class="btn-delete" onclick="deleteTransaction('${t.id}')">削除</button>
+          </div>
+        `;
+        historyList.appendChild(li);
+      });
+
+      // 清算結果の描画
+      const resultBox = document.getElementById('resultBox');
+      if (balance > 0) {
+        resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
+      } else if (balance < 0) {
+        resultBox.textContent = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円 支払う`;
+      } else {
+        resultBox.textContent = `貸し借りなし（清算済み）`;
+      }
+
+      // 精算済みリストの描画
+      const settledList = document.getElementById('settledHistoryList');
+      settledList.innerHTML = '';
+
+      if (settledGroups.length === 0) {
+        settledList.innerHTML = '<p style="text-align: center; color: #888; font-size: 0.85em;">過去の精算履歴はありません</p>';
+      } else {
+        settledGroups.forEach((group) => {
+          const totalAmount = group.items.reduce((sum, item) => sum + item.amount, 0);
+          const div = document.createElement('div');
+          div.className = 'settlement-block';
+          
+          let itemsHtml = group.items.map(i => {
+            const typeText = getRatioDisplayText(i.splitType, i.ratioY, i.ratioU);
+            return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
+          }).join('<br>');
+
+          // 過去データ（summaryTextがない場合）への互換表示
+          const summaryDisp = group.summaryText ? group.summaryText : '清算額データなし';
+
+          div.innerHTML = `
+            <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
+              <div class="settlement-title-info">
+                <span class="accordion-icon" id="icon-${group.id}">▶</span>
+                <div>
+                  <div>精算日時: ${group.date}</div>
+                  <div style="font-size: 0.9em; color: #0056b3; font-weight: bold; margin-top: 2px;">
+                    ${summaryDisp}
+                  </div>
+                  <div style="font-size: 0.8em; color: #666; font-weight: normal; margin-top: 2px;">
+                    ${group.items.length}件 / 総利用額 ${totalAmount.toLocaleString()}円
+                  </div>
+                </div>
+              </div>
+              <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
+            </div>
+            <div class="settlement-details" id="details-${group.id}">
+              ${itemsHtml}
+            </div>
+          `;
+          settledList.appendChild(div);
+        });
+      }
+    }
+
+    setDefaultDate();
+    initRealtimeSync();
+  </script>
+</body>
+</html>
