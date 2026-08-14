@@ -24,24 +24,27 @@
     .btn-action-group { display: flex; gap: 4px; }
     .btn-edit { background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
     .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
+    .btn-move { background: #e9ecef; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
+    .btn-move:disabled { opacity: 0.4; cursor: not-allowed; }
     ul { list-style: none; padding: 0; margin: 0; }
     li { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
     .item-info { flex-grow: 1; padding-right: 8px; }
     .item-title { font-weight: bold; color: #333; }
     .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
     
-    /* アコーディオン & 詳細表示 */
+    /* 並べ替えコントロール */
+    .sort-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; background: #f1f3f5; padding: 8px 12px; border-radius: 8px; font-size: 0.85em; }
+    .sort-controls label { margin-bottom: 0; font-weight: normal; }
+    .sort-controls select { margin-bottom: 0; width: auto; padding: 4px 8px; font-size: 0.9em; flex-grow: 1; }
+
+    /* アコーディオン */
     .settlement-block { background: #f1f3f5; border-radius: 8px; margin-bottom: 10px; font-size: 0.85em; overflow: hidden; border: 1px solid #e9ecef; }
     .settlement-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; cursor: pointer; user-select: none; transition: background 0.2s; }
     .settlement-header:hover { background: #e9ecef; }
     .settlement-title-info { display: flex; align-items: center; gap: 6px; font-weight: bold; color: #495057; }
     .accordion-icon { font-size: 0.75em; color: #6c757d; }
-    .settlement-details { padding: 10px; border-top: 1px dashed #dee2e6; background: #fafafa; display: none; }
+    .settlement-details { padding: 12px; border-top: 1px dashed #dee2e6; background: #fafafa; display: none; color: #555; }
     .settlement-details.open { display: block; }
-    .settled-item-card { background: white; border: 1px solid #e0e0e0; border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 0.9em; }
-    .settled-item-card:last-child { margin-bottom: 0; }
-    .settled-item-header { display: flex; justify-content: space-between; font-weight: bold; color: #333; margin-bottom: 2px; }
-    .settled-item-sub { color: #666; font-size: 0.85em; }
 
     /* モーダル */
     .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; justify-content: center; align-items: center; z-index: 1000; }
@@ -69,7 +72,7 @@
   <!-- 入力フォーム -->
   <div class="card">
     <div class="form-group">
-      <label>日付</label>
+      <label>発生日</label>
       <input type="date" id="dateInput">
 
       <label>誰が払った？</label>
@@ -103,6 +106,18 @@
   <!-- 未精算の履歴 -->
   <div class="card">
     <h3>未精算の記録</h3>
+    <div class="sort-controls">
+      <label>並び替え:</label>
+      <select id="sortKey" onchange="updateView()">
+        <option value="createdAt" selected>登録日時</option>
+        <option value="date">発生日</option>
+        <option value="category">項目</option>
+      </select>
+      <select id="sortOrder" onchange="updateView()">
+        <option value="desc" selected>降順 ▼</option>
+        <option value="asc">昇順 ▲</option>
+      </select>
+    </div>
     <ul id="historyList"></ul>
   </div>
 
@@ -137,7 +152,7 @@
       <div class="form-group">
         <input type="hidden" id="editId">
 
-        <label>日付</label>
+        <label>発生日</label>
         <input type="date" id="editDateInput">
 
         <label>誰が払った？</label>
@@ -184,7 +199,6 @@
     let transactions = [];
     let settledGroups = [];
     let categories = defaultCategories;
-    let currentBalanceText = "";
 
     function setDefaultDate() {
       const today = new Date();
@@ -215,12 +229,22 @@
           db.collection('settings').doc('categories').set({ list: defaultCategories });
         }
         updateCategorySelect();
+        
+        // モーダルが開いている場合は表示を更新
+        if (document.getElementById('categoryModal').classList.contains('open')) {
+          renderCategoryModalList();
+        }
       });
     }
 
     function updateCategorySelect() {
       const categorySelect = document.getElementById('category');
       const editCategorySelect = document.getElementById('editCategory');
+      
+      // 現在選択されている値を保持
+      const currentVal = categorySelect.value;
+      const currentEditVal = editCategorySelect.value;
+      
       categorySelect.innerHTML = '';
       editCategorySelect.innerHTML = '';
 
@@ -235,6 +259,9 @@
         editOption.textContent = cat;
         editCategorySelect.appendChild(editOption);
       });
+      
+      if (categories.includes(currentVal)) categorySelect.value = currentVal;
+      if (categories.includes(currentEditVal)) editCategorySelect.value = currentEditVal;
     }
 
     function openCategoryModal() {
@@ -253,10 +280,28 @@
         const li = document.createElement('li');
         li.innerHTML = `
           <span>${cat}</span>
-          <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
+          <div class="btn-action-group">
+            <button class="btn-move" onclick="moveCategory(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
+            <button class="btn-move" onclick="moveCategory(${index}, 1)" ${index === categories.length - 1 ? 'disabled' : ''}>↓</button>
+            <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
+          </div>
         `;
         modalList.appendChild(li);
       });
+    }
+
+    async function moveCategory(index, direction) {
+      const newIndex = index + direction;
+      if (newIndex < 0 || newIndex >= categories.length) return;
+      
+      const newCategories = [...categories];
+      // 順番を入れ替える
+      const temp = newCategories[index];
+      newCategories[index] = newCategories[newIndex];
+      newCategories[newIndex] = temp;
+      
+      // Firestoreを更新（onSnapshotが反応して自動的に画面も再描画されます）
+      await db.collection('settings').doc('categories').set({ list: newCategories });
     }
 
     async function addCategory() {
@@ -274,7 +319,6 @@
       if (confirm(`「${categories[index]}」を削除しますか？`)) {
         const newCategories = categories.filter((_, i) => i !== index);
         await db.collection('settings').doc('categories').set({ list: newCategories });
-        renderCategoryModalList();
       }
     }
 
@@ -287,7 +331,7 @@
       const title = memo ? `${category}（${memo}）` : category;
       const splitType = document.getElementById('splitType').value;
 
-      if (!dateVal) return alert('日付を選択してください');
+      if (!dateVal) return alert('発生日を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
       const formattedDate = dateVal.replace(/-/g, '/');
@@ -329,7 +373,7 @@
       const memo = document.getElementById('editMemo').value;
       const splitType = document.getElementById('editSplitType').value;
 
-      if (!dateVal) return alert('日付を選択してください');
+      if (!dateVal) return alert('発生日を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
       const formattedDate = dateVal.replace(/-/g, '/');
@@ -377,10 +421,12 @@
       if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
         const settledDate = new Date().toLocaleString('ja-JP');
         
+        // 並び替え状態に関わらず、登録日時の古い順に保存する
+        const itemsToSave = [...transactions].sort((a, b) => a.createdAt - b.createdAt);
+        
         await db.collection('settledGroups').add({
           date: settledDate,
-          items: transactions,
-          summaryText: currentBalanceText,
+          items: itemsToSave,
           createdAt: Date.now()
         });
 
@@ -393,9 +439,11 @@
       }
     }
 
-    function calculateGroupBalanceText(items) {
+    function updateView() {
       let balance = 0;
-      items.forEach((t) => {
+      
+      // 合計金額の計算（並べ替え前に行う）
+      transactions.forEach((t) => {
         const half = t.amount / 2;
         if (t.splitType === 'EQUAL') {
           if (t.payer === 'ゆうすけ') balance += half;
@@ -406,34 +454,35 @@
         }
       });
 
-      if (balance > 0) {
-        return `うらら ➔ ゆうすけ ${balance.toLocaleString()}円`;
-      } else if (balance < 0) {
-        return `ゆうすけ ➔ うらら ${Math.abs(balance).toLocaleString()}円`;
-      } else {
-        return `貸し借りなし（0円）`;
-      }
-    }
+      // 並べ替え処理
+      const sortKey = document.getElementById('sortKey').value;
+      const sortOrder = document.getElementById('sortOrder').value;
+      
+      let sortedTransactions = [...transactions];
+      sortedTransactions.sort((a, b) => {
+        let valA = a[sortKey];
+        let valB = b[sortKey];
+        
+        // 発生日の場合は rawDate (YYYY-MM-DD) を使うと正確
+        if (sortKey === 'date') {
+          valA = a.rawDate || a.date;
+          valB = b.rawDate || b.date;
+        }
+        
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
 
-    function updateView() {
-      let balance = 0;
+      // 未精算リストの描画
       const historyList = document.getElementById('historyList');
       historyList.innerHTML = '';
 
-      if (transactions.length === 0) {
+      if (sortedTransactions.length === 0) {
         historyList.innerHTML = '<li style="justify-content: center; color: #888;">未精算の記録はありません</li>';
       }
 
-      transactions.forEach((t) => {
-        const half = t.amount / 2;
-        if (t.splitType === 'EQUAL') {
-          if (t.payer === 'ゆうすけ') balance += half;
-          if (t.payer === 'うらら') balance -= half;
-        } else {
-          if (t.payer === 'ゆうすけ') balance += t.amount;
-          if (t.payer === 'うらら') balance -= t.amount;
-        }
-
+      sortedTransactions.forEach((t) => {
         const li = document.createElement('li');
         const typeText = t.splitType === 'EQUAL' ? '折半' : '全額立替';
         
@@ -450,18 +499,17 @@
         historyList.appendChild(li);
       });
 
+      // 清算結果の描画
       const resultBox = document.getElementById('resultBox');
       if (balance > 0) {
-        currentBalanceText = `うらら ➔ ゆうすけ ${balance.toLocaleString()}円`;
         resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
       } else if (balance < 0) {
-        currentBalanceText = `ゆうすけ ➔ うらら ${Math.abs(balance).toLocaleString()}円`;
         resultBox.textContent = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円 支払う`;
       } else {
-        currentBalanceText = `貸し借りなし（0円）`;
         resultBox.textContent = `貸し借りなし（清算済み）`;
       }
 
+      // 精算済みリストの描画
       const settledList = document.getElementById('settledHistoryList');
       settledList.innerHTML = '';
 
@@ -469,27 +517,14 @@
         settledList.innerHTML = '<p style="text-align: center; color: #888; font-size: 0.85em;">過去の精算履歴はありません</p>';
       } else {
         settledGroups.forEach((group) => {
-          const summaryDisplay = group.summaryText || calculateGroupBalanceText(group.items);
-
+          const totalAmount = group.items.reduce((sum, item) => sum + item.amount, 0);
           const div = document.createElement('div');
           div.className = 'settlement-block';
           
           let itemsHtml = group.items.map(i => {
             const typeText = i.splitType === 'EQUAL' ? '折半' : '全額立替';
-            const catName = i.category || '未分類';
-            const memoStr = i.memo ? `（${i.memo}）` : '';
-            return `
-              <div class="settled-item-card">
-                <div class="settled-item-header">
-                  <span>${catName}${memoStr}</span>
-                  <span>${i.amount.toLocaleString()}円</span>
-                </div>
-                <div class="settled-item-sub">
-                  ${i.date} / 支払者: ${i.payer} (${typeText})
-                </div>
-              </div>
-            `;
-          }).join('');
+            return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
+          }).join('<br>');
 
           div.innerHTML = `
             <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
@@ -497,8 +532,8 @@
                 <span class="accordion-icon" id="icon-${group.id}">▶</span>
                 <div>
                   <div>精算日時: ${group.date}</div>
-                  <div style="font-size: 0.85em; color: #0056b3; font-weight: bold; margin-top: 2px;">
-                    ${summaryDisplay} （${group.items.length}件）
+                  <div style="font-size: 0.85em; color: #666; font-weight: normal;">
+                    ${group.items.length}件 / 計 ${totalAmount.toLocaleString()}円
                   </div>
                 </div>
               </div>
