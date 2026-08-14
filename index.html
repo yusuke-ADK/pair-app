@@ -3,1716 +3,314 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>あだちとうららの立替メモ</title>
-
-  <!-- Firebase (SDK) -->
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
-
+  <title>立替メモ & 割り勘ルーレット</title>
   <style>
-    :root {
-      --primary-color: #4a6fa5;
-      --primary-hover: #3b5984;
-      --accent-color: #6c5ce7;
-      --success-color: #2ed573;
-      --success-hover: #26af5f;
-      --danger-color: #ff4757;
-      --warning-color: #ffa502;
-      --text-main: #2d3436;
-      --text-sub: #636e72;
-      --card-bg: rgba(255, 255, 255, 0.88);
-      --card-border: rgba(255, 255, 255, 0.6);
-      --shadow-sm: 0 4px 15px rgba(0, 0, 0, 0.05);
-      --shadow-md: 0 8px 25px rgba(0, 0, 0, 0.08);
-      --radius-lg: 16px;
-      --radius-md: 10px;
-    }
-
-    /* おしゃれなグラデーション背景 */
+    /* 全体スタイル */
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      max-width: 480px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: #f4f6f8;
+      margin: 0;
+      padding: 20px;
+      color: #333;
+    }
+    .container {
+      max-width: 500px;
       margin: 0 auto;
-      padding: 20px 15px 40px 15px;
-      background: linear-gradient(135deg, #e0c3fc 0%, #8ec5fc 100%);
-      background-attachment: fixed;
-      min-height: 100vh;
-      box-sizing: border-box;
-      color: var(--text-main);
     }
-
-    /* メインタイトル */
-    .app-title {
+    h1 {
+      font-size: 1.5rem;
       text-align: center;
-      color: #2c3e50;
-      font-size: 1.4em;
-      font-weight: 800;
-      letter-spacing: 0.5px;
-      margin: 10px 0 20px 0;
-      text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
+      margin-bottom: 20px;
     }
 
-    /* すりガラス風（グラスモーフィズム）カード */
+    /* カード風ブロック */
     .card {
-      background: var(--card-bg);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border: 1px solid var(--card-border);
-      padding: 18px;
-      border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-md);
-      margin-bottom: 18px;
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-
-    h3 {
-      text-align: center;
-      color: var(--text-main);
-      margin: 0 0 14px 0;
-      font-size: 1.1em;
-      font-weight: 700;
-    }
-
-    /* 清算結果カード */
-    .result {
-      font-size: 1.15em;
-      font-weight: bold;
-      background: linear-gradient(135deg, #e3f2fd 0%, #ffffff 100%);
-      color: var(--primary-color);
+      background: #fff;
+      border-radius: 12px;
       padding: 16px;
-      text-align: center;
-      border-radius: var(--radius-md);
-      margin-bottom: 12px;
-      border: 1px solid rgba(74, 111, 165, 0.2);
-      box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);
+      margin-bottom: 16px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      position: relative; /* 右下ボタン配置のため */
     }
 
-    .form-group { margin-bottom: 10px; }
-    .label-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    
+    .card-title {
+      font-size: 0.9rem;
+      font-weight: bold;
+      color: #666;
+      margin-bottom: 12px;
+    }
+
+    /* フォーム要素 */
+    .form-group {
+      margin-bottom: 12px;
+    }
     label {
-      font-size: 0.82em;
-      color: var(--text-sub);
-      font-weight: 700;
       display: block;
+      font-size: 0.8rem;
+      color: #777;
       margin-bottom: 4px;
-      letter-spacing: 0.3px;
     }
-
-    .btn-link {
-      background: none;
-      border: none;
-      color: var(--primary-color);
-      font-size: 0.8em;
-      cursor: pointer;
-      text-decoration: none;
-      padding: 0;
-      font-weight: 600;
-      transition: opacity 0.2s;
-    }
-    .btn-link:hover { opacity: 0.8; }
-
-    /* フォーム入力要素 */
-    input[type="text"], input[type="number"], input[type="date"], select {
+    input[type="text"], input[type="number"] {
       width: 100%;
-      padding: 11px 14px;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 8px;
       box-sizing: border-box;
-      border: 1px solid #dcdde1;
-      border-radius: var(--radius-md);
-      font-size: 0.95em;
-      margin-bottom: 12px;
-      background: rgba(255, 255, 255, 0.9);
-      color: var(--text-main);
-      outline: none;
-      transition: border-color 0.2s, box-shadow 0.2s;
-    }
-    input[type="text"]:focus, input[type="number"]:focus, input[type="date"]:focus, select:focus {
-      border-color: var(--primary-color);
-      box-shadow: 0 0 0 3px rgba(74, 111, 165, 0.15);
-      background: #ffffff;
+      font-size: 1rem;
     }
 
-    /* 日付ショートカットボタン群 */
-    .date-shortcuts {
-      display: flex;
-      gap: 6px;
-      margin-top: -6px;
-      margin-bottom: 12px;
-    }
-    .date-btn {
-      flex: 1;
-      padding: 6px;
-      font-size: 0.78em;
-      background: rgba(238, 241, 246, 0.9);
-      border: 1px solid #dcdde1;
-      border-radius: 6px;
+    /* 「ｷﾞｬﾝﾌﾞる？」ミニボタン */
+    .btn-gamble-mini {
+      position: absolute;
+      right: 16px;
+      bottom: 16px;
+      font-size: 0.75rem;
+      padding: 4px 10px;
+      background: #f0f0f0;
+      color: #555;
+      border: 1px dashed #aaa;
+      border-radius: 12px;
       cursor: pointer;
-      font-weight: bold;
-      color: var(--text-sub);
-      transition: all 0.2s;
-    }
-    .date-btn:active {
-      background: var(--primary-color);
-      color: white;
-      border-color: var(--primary-color);
-    }
-
-    /* 各種ボタン */
-    .btn-submit {
-      width: 100%;
-      padding: 13px;
-      background: linear-gradient(135deg, #2ed573 0%, #26af5f 100%);
-      color: white;
-      border: none;
-      border-radius: var(--radius-md);
-      font-weight: bold;
-      font-size: 1em;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(46, 213, 115, 0.3);
-      transition: transform 0.15s, box-shadow 0.15s;
-    }
-    .btn-submit:active { transform: scale(0.98); }
-
-    .btn-settle {
-      width: 100%;
-      padding: 11px;
-      background: linear-gradient(135deg, #48dbfb 0%, #0abde3 100%);
-      color: white;
-      border: none;
-      border-radius: var(--radius-md);
-      font-weight: bold;
-      font-size: 0.9em;
-      cursor: pointer;
-      box-shadow: 0 4px 12px rgba(10, 189, 227, 0.25);
-    }
-
-    .btn-template {
-      width: 100%;
-      padding: 11px;
-      background: linear-gradient(135deg, #a55eea 0%, #8854d0 100%);
-      color: white;
-      border: none;
-      border-radius: var(--radius-md);
-      font-weight: bold;
-      font-size: 0.9em;
-      cursor: pointer;
-      margin-bottom: 14px;
-      box-shadow: 0 4px 12px rgba(136, 84, 208, 0.25);
-    }
-
-    .btn-roulette {
-      width: 100%;
-      padding: 10px;
-      background: linear-gradient(135deg, #ff9f43 0%, #ee5253 100%);
-      color: white;
-      border: none;
-      border-radius: var(--radius-md);
-      font-weight: bold;
-      font-size: 0.88em;
-      cursor: pointer;
-      margin-bottom: 12px;
-      box-shadow: 0 4px 12px rgba(238, 82, 83, 0.25);
-    }
-
-    .btn-action-group { display: flex; gap: 6px; align-items: center; }
-    
-    .btn-edit {
-      background: #fed330;
-      color: #2d3436;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 0.75em;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .btn-delete {
-      background: #ff7675;
-      color: white;
-      border: none;
-      padding: 5px 10px;
-      border-radius: 6px;
-      font-size: 0.75em;
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .btn-select-tmpl {
-      background: var(--primary-color);
-      color: white;
-      border: none;
-      padding: 6px 12px;
-      border-radius: 6px;
-      font-weight: bold;
-      font-size: 0.8em;
-      cursor: pointer;
-    }
-
-    ul { list-style: none; padding: 0; margin: 0; }
-    
-    li {
-      border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-      padding: 12px 0;
-      font-size: 0.88em;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    li:last-child { border-bottom: none; }
-
-    .item-info { flex-grow: 1; padding-right: 8px; }
-    .item-title { font-weight: bold; color: var(--text-main); font-size: 0.95em; }
-    .item-sub { color: var(--text-sub); font-size: 0.82em; margin-top: 3px; }
-    
-    /* 支払い者タブ風ラジオボタン */
-    .radio-group { display: flex; gap: 10px; margin-bottom: 12px; }
-    .radio-group input[type="radio"] { display: none; }
-    .radio-group label {
-      flex: 1;
-      text-align: center;
-      padding: 10px;
-      background: rgba(238, 241, 246, 0.8);
-      border-radius: var(--radius-md);
-      cursor: pointer;
-      font-weight: bold;
-      color: var(--text-sub);
-      border: 2px solid transparent;
       transition: all 0.2s ease;
-      margin-bottom: 0;
     }
-    .radio-group input[type="radio"]:checked + label {
-      background: #ffffff;
-      border-color: var(--primary-color);
-      color: var(--primary-color);
-      box-shadow: var(--shadow-sm);
+    .btn-gamble-mini:hover {
+      background: #ffe600;
+      color: #000;
+      border-color: #000;
+      transform: scale(1.08) rotate(-2deg);
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
 
-    /* 割合カスタム入力 */
-    .custom-ratio-inputs {
+    /* メンバータグリスト */
+    .member-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+    .tag {
+      background: #eef2f5;
+      padding: 4px 10px;
+      border-radius: 16px;
+      font-size: 0.85rem;
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 8px;
-      margin-bottom: 10px;
-      background: rgba(241, 243, 246, 0.8);
-      padding: 12px;
-      border: 1px solid #dcdde1;
-      border-radius: var(--radius-md);
+      gap: 6px;
     }
-    .custom-ratio-inputs input { margin-bottom: 0; width: 60px; text-align: center; font-size: 1.1em; font-weight: bold; }
-    .custom-ratio-inputs span { font-weight: bold; color: var(--text-sub); font-size: 0.9em; }
-
-    /* 並べ替えコントロール */
-    .sort-controls {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-      margin-bottom: 12px;
-      background: rgba(241, 243, 246, 0.8);
-      padding: 8px 12px;
-      border-radius: var(--radius-md);
-      font-size: 0.85em;
-    }
-    .sort-controls label { margin-bottom: 0; font-weight: normal; }
-    .sort-controls select { margin-bottom: 0; width: auto; padding: 4px 8px; font-size: 0.9em; flex-grow: 1; }
-
-    /* アコーディオン */
-    .settlement-block {
-      background: rgba(255, 255, 255, 0.6);
-      border-radius: var(--radius-md);
-      margin-bottom: 10px;
-      font-size: 0.85em;
-      overflow: hidden;
-      border: 1px solid rgba(0, 0, 0, 0.05);
-    }
-    .settlement-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 12px;
+    .tag-remove {
       cursor: pointer;
-      user-select: none;
-      transition: background 0.2s;
+      color: #999;
+      font-weight: bold;
     }
-    .settlement-header:hover { background: rgba(255, 255, 255, 0.9); }
-    .settlement-title-info { display: flex; align-items: center; gap: 8px; font-weight: bold; color: var(--text-main); }
-    .accordion-icon { font-size: 0.75em; color: var(--text-sub); }
-    .settlement-details { padding: 12px; border-top: 1px dashed #dcdde1; background: rgba(255, 255, 255, 0.4); display: none; color: var(--text-sub); }
-    .settlement-details.open { display: block; }
 
-    /* モーダル背景とコンテンツ */
+    /* ボタン共通 */
+    .btn-primary {
+      width: 100%;
+      padding: 12px;
+      background: #007aff;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* ルーレット用モーダル（ポップアップ） */
     .modal-overlay {
-      position: fixed;
-      top: 0; left: 0; width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.4);
-      backdrop-filter: blur(4px);
       display: none;
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.6);
       justify-content: center;
       align-items: center;
       z-index: 1000;
     }
-    .modal-overlay.open { display: flex; }
     .modal-content {
-      background: #ffffff;
+      background: white;
       width: 90%;
-      max-width: 400px;
-      padding: 22px;
-      border-radius: var(--radius-lg);
-      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-      max-height: 85vh;
-      overflow-y: auto;
-    }
-    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-    .modal-header h3 { margin: 0; font-size: 1.15em; text-align: left; }
-    .btn-close { background: none; border: none; font-size: 1.3em; cursor: pointer; color: var(--text-sub); }
-    .category-add-box { display: flex; gap: 8px; margin-bottom: 15px; }
-    .category-add-box input { margin-bottom: 0; flex-grow: 1; }
-    .category-add-box button {
-      padding: 8px 14px;
-      background: var(--primary-color);
-      color: white;
-      border: none;
-      border-radius: var(--radius-md);
-      font-weight: bold;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    /* ルーレット演出用スタイル */
-    .roulette-box {
+      max-width: 360px;
+      border-radius: 16px;
+      padding: 24px;
       text-align: center;
-      padding: 20px 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.2);
     }
+    
+    /* ルーレット表示領域 */
     .roulette-display {
-      font-size: 1.3em;
+      font-size: 1.8rem;
       font-weight: bold;
-      color: #ee5253;
-      min-height: 60px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #fff5f5;
-      border: 2px dashed #ff7675;
-      border-radius: var(--radius-md);
-      margin-bottom: 15px;
-      padding: 10px;
+      height: 80px;
+      line-height: 80px;
+      background: #f8f9fa;
+      border: 2px solid #333;
+      border-radius: 12px;
+      margin: 20px 0;
+      color: #007aff;
+      overflow: hidden;
     }
+    
     .btn-spin {
-      width: 100%;
-      padding: 12px;
-      background: linear-gradient(135deg, #ff9f43 0%, #ee5253 100%);
+      background: #ff3b30;
       color: white;
       border: none;
-      border-radius: var(--radius-md);
+      padding: 12px 24px;
+      font-size: 1.1rem;
       font-weight: bold;
-      font-size: 1.05em;
+      border-radius: 24px;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(238, 82, 83, 0.3);
-    }
-    .btn-apply-roulette {
       width: 100%;
-      padding: 11px;
-      background: var(--primary-color);
-      color: white;
-      border: none;
-      border-radius: var(--radius-md);
-      font-weight: bold;
-      font-size: 0.95em;
-      cursor: pointer;
-      margin-top: 10px;
-      display: none;
     }
-
-    /* ドラッグ＆ドロップ用スタイル */
-    .drag-handle { color: #b2bec3; cursor: grab; padding: 4px 8px; font-size: 1.2em; user-select: none; touch-action: none; }
-    .drag-handle:active { cursor: grabbing; color: var(--primary-color); }
-    .draggable-list li { user-select: none; transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease; }
-    .draggable-list li.dragging { opacity: 0.7; background: #eef6ff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: var(--radius-md); position: relative; z-index: 10; }
-    .draggable-list li.drag-over { border-top: 2px solid var(--primary-color); }
-    .drag-guide { font-size: 0.75em; color: var(--text-sub); text-align: center; margin-bottom: 10px; background: rgba(0,0,0,0.03); padding: 4px; border-radius: 4px; }
+    .btn-close {
+      background: transparent;
+      border: none;
+      color: #888;
+      margin-top: 12px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
   </style>
 </head>
 <body>
 
-  <h2 class="app-title">あだちとうららの立替メモ</h2>
+  <div class="container">
+    <h1>立替メモ</h1>
 
-  <!-- 1. 入力フォーム -->
-  <div class="card">
-    <!-- テンプレート選択ボタン -->
-    <button class="btn-template" onclick="openTemplateListModal()">📋 テンプレートから入力</button>
-
-    <div class="form-group">
-      <label>発生日</label>
-      <input type="date" id="dateInput">
-      <!-- 日付ショートカットボタン -->
-      <div class="date-shortcuts">
-        <button type="button" class="date-btn" onclick="setDateShortcut(0)">今日</button>
-        <button type="button" class="date-btn" onclick="setDateShortcut(-1)">昨日</button>
-        <button type="button" class="date-btn" onclick="setDateShortcut(-2)">一昨日</button>
+    <!-- 参加者設定カード -->
+    <div class="card">
+      <div class="card-title">👥 参加者メンバー</div>
+      <div style="display: flex; gap: 8px;">
+        <input type="text" id="member-input" placeholder="名前を入力">
+        <button onclick="addMember()" style="padding: 0 16px; border-radius: 8px; border:1px solid #ccc; cursor:pointer;">追加</button>
       </div>
-
-      <label>誰が払った？</label>
-      <div class="radio-group">
-        <input type="radio" id="payerYusuke" name="payer" value="ゆうすけ" checked>
-        <label for="payerYusuke">ゆうすけ</label>
-        
-        <input type="radio" id="payerUrara" name="payer" value="うらら">
-        <label for="payerUrara">うらら</label>
-      </div>
-
-      <div class="label-container">
-        <label>項目（カテゴリー）</label>
-        <button type="button" class="btn-link" onclick="openCategoryModal()">⚙️ 項目を編集</button>
-      </div>
-      <select id="category"></select>
-
-      <label>金額（円）</label>
-      <input type="number" id="amount" placeholder="例: 3000">
-
-      <label>詳細・メモ（任意）</label>
-      <input type="text" id="title" placeholder="例: スーパーでの買い物">
-
-      <!-- 割り勘ルーレットボタン -->
-      <button type="button" class="btn-roulette" onclick="openRouletteModal()">🎰 割り方決めルーレット！</button>
-
-      <div id="simpleSplitArea">
-        <label>割り方</label>
-        <select id="splitType">
-          <option value="EQUAL">折半</option>
-          <option value="PAY_ALL">全額立替</option>
-        </select>
-      </div>
-
-      <div id="customSplitArea" style="display: none;">
-        <label>割り方</label>
-        <div class="custom-ratio-inputs">
-          <span>ゆうすけ</span>
-          <input type="number" id="ratioYusuke" value="1" min="0">
-          <span>：</span>
-          <span>うらら</span>
-          <input type="number" id="ratioUrara" value="1" min="0">
-        </div>
-      </div>
-
-      <div style="text-align: right; margin-top: -4px; margin-bottom: 12px;">
-        <button type="button" class="btn-link" id="toggleRatioBtn" onclick="toggleRatio('')" style="font-size: 0.78em; color: var(--text-sub);">＋ 割合を細かく設定</button>
-      </div>
-
-      <button class="btn-submit" onclick="addTransaction()">記録を追加する</button>
+      <div class="member-tags" id="member-list"></div>
     </div>
-  </div>
 
-  <!-- 2. 未精算の記録 -->
-  <div class="card">
-    <h3>未精算の記録</h3>
-    <div class="sort-controls">
-      <label>並び替え:</label>
-      <select id="sortKey" onchange="updateView()">
-        <option value="createdAt" selected>登録日時</option>
-        <option value="date">発生日</option>
-        <option value="category">項目</option>
-      </select>
-      <select id="sortOrder" onchange="updateView()">
-        <option value="desc" selected>降順 ▼</option>
-        <option value="asc">昇順 ▲</option>
-      </select>
-    </div>
-    <ul id="historyList"></ul>
-  </div>
-
-  <!-- 3. 精算額計算表示とリセットボタン -->
-  <div class="card">
-    <div class="result" id="resultBox">通信中...</div>
-    <button class="btn-settle" onclick="settleUp()">精算を完了して清算額をリセット</button>
-  </div>
-
-  <!-- 4. 精算済みの過去履歴 -->
-  <div class="card">
-    <h3>精算済みの過去履歴</h3>
-    <div id="settledHistoryList"></div>
-  </div>
-
-  <!-- 割り勘ルーレットモーダル -->
-  <div class="modal-overlay" id="rouletteModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>🎰 割り勘ルーレット</h3>
-        <button class="btn-close" onclick="closeRouletteModal()">✕</button>
-      </div>
-      <div class="roulette-box">
-        <div class="roulette-display" id="rouletteDisplay">ボタンを押してスタート！</div>
-        <button class="btn-spin" id="btnSpin" onclick="spinRoulette()">ルーレットを回す！</button>
-        <button class="btn-apply-roulette" id="btnApplyRoulette" onclick="applyRouletteResult()">この結果をフォームにセット</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- カテゴリー編集用モーダル -->
-  <div class="modal-overlay" id="categoryModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>項目の編集</h3>
-        <button class="btn-close" onclick="closeCategoryModal()">✕</button>
-      </div>
-      <div class="category-add-box">
-        <input type="text" id="newCategoryInput" placeholder="新しい項目名">
-        <button onclick="addCategory()">追加</button>
-      </div>
-      <div class="drag-guide">☰ を長押しして上下に移動で順序変更</div>
-      <ul class="draggable-list" id="modalCategoryList"></ul>
-    </div>
-  </div>
-
-  <!-- 記録の編集用モーダル -->
-  <div class="modal-overlay" id="editModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>記録の編集</h3>
-        <button class="btn-close" onclick="closeEditModal()">✕</button>
+    <!-- 入力カード（右下にギャンブルボタン付き） -->
+    <div class="card" style="padding-bottom: 48px;">
+      <div class="card-title">💸 お支払いの入力</div>
+      
+      <div class="form-group">
+        <label>内容</label>
+        <input type="text" id="item-title" placeholder="例：居酒屋、タクシー代">
       </div>
       <div class="form-group">
-        <input type="hidden" id="editId">
-
-        <label>発生日</label>
-        <input type="date" id="editDateInput">
-
-        <label>誰が払った？</label>
-        <div class="radio-group">
-          <input type="radio" id="editPayerYusuke" name="editPayer" value="ゆうすけ">
-          <label for="editPayerYusuke">ゆうすけ</label>
-          
-          <input type="radio" id="editPayerUrara" name="editPayer" value="うらら">
-          <label for="editPayerUrara">うらら</label>
-        </div>
-
-        <label>項目（カテゴリー）</label>
-        <select id="editCategory"></select>
-
         <label>金額（円）</label>
-        <input type="number" id="editAmount">
-
-        <label>詳細・メモ（任意）</label>
-        <input type="text" id="editMemo" placeholder="例: スーパーでの買い物">
-
-        <div id="editSimpleSplitArea">
-          <label>割り方</label>
-          <select id="editSplitType">
-            <option value="EQUAL">折半</option>
-            <option value="PAY_ALL">全額立替</option>
-          </select>
-        </div>
-
-        <div id="editCustomSplitArea" style="display: none;">
-          <label>割り方</label>
-          <div class="custom-ratio-inputs">
-            <span>ゆうすけ</span>
-            <input type="number" id="editRatioYusuke" value="1" min="0">
-            <span>：</span>
-            <span>うらら</span>
-            <input type="number" id="editRatioUrara" value="1" min="0">
-          </div>
-        </div>
-
-        <div style="text-align: right; margin-top: -4px; margin-bottom: 12px;">
-          <button type="button" class="btn-link" id="editToggleRatioBtn" onclick="toggleRatio('edit')" style="font-size: 0.78em; color: var(--text-sub);">＋ 割合を細かく設定</button>
-        </div>
-
-        <button class="btn-submit" onclick="saveEditedTransaction()" style="margin-top: 10px;">変更を保存する</button>
+        <input type="number" id="item-amount" placeholder="0">
       </div>
+
+      <!--  入力ブロック右下の「ｷﾞｬﾝﾌﾞる？」ボタン -->
+      <button class="btn-gamble-mini" onclick="openGambleModal()">🎲 ｷﾞｬﾝﾌﾞる？</button>
     </div>
   </div>
 
-  <!-- 1. テンプレート選択モーダル -->
-  <div class="modal-overlay" id="templateListModal">
+  <!-- 🎲 割り方決めルーレット モーダル -->
+  <div class="modal-overlay" id="gamble-modal">
     <div class="modal-content">
-      <div class="modal-header">
-        <h3>テンプレートを選択</h3>
-        <button class="btn-close" onclick="closeTemplateListModal()">✕</button>
-      </div>
-      <div style="text-align: right; margin-bottom: 10px;">
-        <button type="button" class="btn-link" onclick="openTemplateManageModal()">⚙️ テンプレートの設定・管理</button>
-      </div>
-      <ul id="templateSelectList"></ul>
-    </div>
-  </div>
+      <h2 style="margin:0; font-size: 1.2rem;">🎲 割り方決めルーレット</h2>
+      <p style="font-size: 0.8rem; color: #666; margin-top: 4px;">本日の男気（全額支払い）は誰だ！？</p>
 
-  <!-- 2. テンプレートからの確認・編集モーダル -->
-  <div class="modal-overlay" id="templateUseModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>内容を確認して登録</h3>
-        <button class="btn-close" onclick="closeTemplateUseModal()">✕</button>
-      </div>
-      <div class="form-group">
-        <label>発生日</label>
-        <input type="date" id="tmplUseDateInput">
+      <div class="roulette-display" id="roulette-display">❓</div>
 
-        <label>誰が払った？</label>
-        <div class="radio-group">
-          <input type="radio" id="tmplUsePayerYusuke" name="tmplUsePayer" value="ゆうすけ">
-          <label for="tmplUsePayerYusuke">ゆうすけ</label>
-          
-          <input type="radio" id="tmplUsePayerUrara" name="tmplUsePayer" value="うらら">
-          <label for="tmplUsePayerUrara">うらら</label>
-        </div>
-
-        <label>項目（カテゴリー）</label>
-        <select id="tmplUseCategory"></select>
-
-        <label>金額（円）</label>
-        <input type="number" id="tmplUseAmount">
-
-        <label>詳細・メモ（任意）</label>
-        <input type="text" id="tmplUseMemo" placeholder="例: 今月分の電気代">
-
-        <div id="tmplUseSimpleSplitArea">
-          <label>割り方</label>
-          <select id="tmplUseSplitType">
-            <option value="EQUAL">折半</option>
-            <option value="PAY_ALL">全額立替</option>
-          </select>
-        </div>
-
-        <div id="tmplUseCustomSplitArea" style="display: none;">
-          <label>割り方</label>
-          <div class="custom-ratio-inputs">
-            <span>ゆうすけ</span>
-            <input type="number" id="tmplUseRatioYusuke" value="1" min="0">
-            <span>：</span>
-            <span>うらら</span>
-            <input type="number" id="tmplUseRatioUrara" value="1" min="0">
-          </div>
-        </div>
-
-        <div style="text-align: right; margin-top: -4px; margin-bottom: 12px;">
-          <button type="button" class="btn-link" id="tmplUseToggleRatioBtn" onclick="toggleRatio('tmplUse')" style="font-size: 0.78em; color: var(--text-sub);">＋ 割合を細かく設定</button>
-        </div>
-
-        <button class="btn-submit" onclick="submitTemplateTransaction()" style="margin-top: 10px;">この内容で記録を追加する</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- 3. テンプレート設定・管理モーダル -->
-  <div class="modal-overlay" id="templateManageModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>テンプレート管理</h3>
-        <button class="btn-close" onclick="closeTemplateManageModal()">✕</button>
-      </div>
-      <div class="form-group" style="background: rgba(241, 243, 246, 0.8); padding: 12px; border-radius: var(--radius-md); margin-bottom: 15px;">
-        <label style="color: var(--text-main); font-weight: bold;">新規テンプレート登録</label>
-        
-        <label style="margin-top: 8px;">誰が払う？</label>
-        <div class="radio-group">
-          <input type="radio" id="tmplPayerYusuke" name="tmplPayer" value="ゆうすけ" checked>
-          <label for="tmplPayerYusuke">ゆうすけ</label>
-          <input type="radio" id="tmplPayerUrara" name="tmplPayer" value="うらら">
-          <label for="tmplPayerUrara">うらら</label>
-        </div>
-
-        <label>項目（カテゴリー）</label>
-        <select id="tmplCategory"></select>
-
-        <label>目安の金額（円）</label>
-        <input type="number" id="tmplAmount" placeholder="例: 80000（毎回変わる場合は空欄可）">
-
-        <label>詳細・メモ（任意）</label>
-        <input type="text" id="tmplMemo" placeholder="例: 電気代・ガス代">
-
-        <div id="tmplSimpleSplitArea">
-          <label>割り方</label>
-          <select id="tmplSplitType">
-            <option value="EQUAL">折半</option>
-            <option value="PAY_ALL">全額立替</option>
-          </select>
-        </div>
-
-        <div id="tmplCustomSplitArea" style="display: none;">
-          <label>割り方</label>
-          <div class="custom-ratio-inputs">
-            <span>ゆうすけ</span>
-            <input type="number" id="tmplRatioYusuke" value="1" min="0">
-            <span>：</span>
-            <span>うらら</span>
-            <input type="number" id="tmplRatioUrara" value="1" min="0">
-          </div>
-        </div>
-
-        <div style="text-align: right; margin-top: -4px; margin-bottom: 12px;">
-          <button type="button" class="btn-link" id="tmplToggleRatioBtn" onclick="toggleRatio('tmpl')" style="font-size: 0.78em; color: var(--text-sub);">＋ 割合を細かく設定</button>
-        </div>
-
-        <button class="btn-submit" onclick="addTemplate()" style="background: linear-gradient(135deg, #4a6fa5 0%, #3b5984 100%); margin-top: 5px;">テンプレートとして保存</button>
-      </div>
-
-      <label style="font-weight: bold; color: var(--text-main);">登録済みテンプレート</label>
-      <div class="drag-guide" style="margin-top: 4px;">☰ を長押しして上下に移動で順序変更</div>
-      <ul class="draggable-list" id="templateManageList" style="margin-top: 5px;"></ul>
-    </div>
-  </div>
-
-  <!-- 4. テンプレート直接編集用モーダル -->
-  <div class="modal-overlay" id="templateEditModal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h3>テンプレートの編集</h3>
-        <button class="btn-close" onclick="closeTemplateEditModal()">✕</button>
-      </div>
-      <div class="form-group">
-        <input type="hidden" id="tmplEditId">
-
-        <label>誰が払う？</label>
-        <div class="radio-group">
-          <input type="radio" id="tmplEditPayerYusuke" name="tmplEditPayer" value="ゆうすけ">
-          <label for="tmplEditPayerYusuke">ゆうすけ</label>
-          <input type="radio" id="tmplEditPayerUrara" name="tmplEditPayer" value="うらら">
-          <label for="tmplEditPayerUrara">うらら</label>
-        </div>
-
-        <label>項目（カテゴリー）</label>
-        <select id="tmplEditCategory"></select>
-
-        <label>目安の金額（円）</label>
-        <input type="number" id="tmplEditAmount" placeholder="例: 80000（毎回変わる場合は空欄可）">
-
-        <label>詳細・メモ（任意）</label>
-        <input type="text" id="tmplEditMemo" placeholder="例: 電気代・ガス代">
-
-        <div id="tmplEditSimpleSplitArea">
-          <label>割り方</label>
-          <select id="tmplEditSplitType">
-            <option value="EQUAL">折半</option>
-            <option value="PAY_ALL">全額立替</option>
-          </select>
-        </div>
-
-        <div id="tmplEditCustomSplitArea" style="display: none;">
-          <label>割り方</label>
-          <div class="custom-ratio-inputs">
-            <span>ゆうすけ</span>
-            <input type="number" id="tmplEditRatioYusuke" value="1" min="0">
-            <span>：</span>
-            <span>うらら</span>
-            <input type="number" id="tmplEditRatioUrara" value="1" min="0">
-          </div>
-        </div>
-
-        <div style="text-align: right; margin-top: -4px; margin-bottom: 12px;">
-          <button type="button" class="btn-link" id="tmplEditToggleRatioBtn" onclick="toggleRatio('tmplEdit')" style="font-size: 0.78em; color: var(--text-sub);">＋ 割合を細かく設定</button>
-        </div>
-
-        <button class="btn-submit" onclick="saveEditedTemplate()" style="margin-top: 10px;">テンプレートを変更する</button>
-      </div>
+      <button class="btn-spin" id="spin-btn" onclick="startRoulette()">ルーレットを回す！</button>
+      <br>
+      <button class="btn-close" onclick="closeGambleModal()">閉じる</button>
     </div>
   </div>
 
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyB9PUPbJLyY3JM_Hv7Nrr9f62iJW8edulU",
-      authDomain: "pair-app-61a15.firebaseapp.com",
-      databaseURL: "https://pair-app-61a15-default-rtdb.firebaseio.com",
-      projectId: "pair-app-61a15",
-      storageBucket: "pair-app-61a15.firebasestorage.app",
-      messagingSenderId: "547054744435",
-      appId: "1:547054744435:web:8988a8932afaf118e10b06"
-    };
+    // メンバー管理データ
+    let members = ["たろう", "はなこ", "じろう"];
 
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    // 初開時にメンバー表示
+    renderMembers();
 
-    const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱費", "交通費", "娯楽・レジャー", "旅行", "その他"];
-    let transactions = [];
-    let settledGroups = [];
-    let categories = defaultCategories;
-    let templates = [];
-    
-    // 割合切り替えのステータス管理
-    let isCustomRatio = false;
-    let isEditCustomRatio = false;
-    let isTmplCustomRatio = false;
-    let isTmplUseCustomRatio = false;
-    let isTmplEditCustomRatio = false;
-
-    // デフォルト日付セット
-    function setDefaultDate() {
-      setDateShortcut(0);
+    // メンバー表示処理
+    function renderMembers() {
+      const container = document.getElementById('member-list');
+      container.innerHTML = '';
+      members.forEach((m, index) => {
+        container.innerHTML += `
+          <div class="tag">
+            ${m}
+            <span class="tag-remove" onclick="removeMember(${index})">×</span>
+          </div>
+        `;
+      });
     }
 
-    // 日付ショートカット処理
-    function setDateShortcut(offsetDays) {
-      const target = new Date();
-      target.setDate(target.getDate() + offsetDays);
-      const yyyy = target.getFullYear();
-      const mm = String(target.getMonth() + 1).padStart(2, '0');
-      const dd = String(target.getDate()).padStart(2, '0');
-      document.getElementById('dateInput').value = `${yyyy}-${mm}-${dd}`;
+    // メンバー追加
+    function addMember() {
+      const input = document.getElementById('member-input');
+      const name = input.value.trim();
+      if (name) {
+        members.push(name);
+        input.value = '';
+        renderMembers();
+      }
     }
 
-    /* --- 割り勘ルーレット関連 --- */
-    let rouletteResult = null;
-    const rouletteOptions = [
-      { text: "平和に【折半】 (1 : 1)", splitType: "EQUAL" },
-      { text: "👑 ゆうすけが【全額立替】！", splitType: "PAY_ALL", payer: "ゆうすけ" },
-      { text: "👑 うららが【全額立替】！", splitType: "PAY_ALL", payer: "うらら" },
-      { text: "🎯 ゆうすけ 7 ： 3 うらら", splitType: "CUSTOM", ratioY: 7, ratioU: 3 },
-      { text: "🎯 ゆうすけ 3 ： 7 うらら", splitType: "CUSTOM", ratioY: 3, ratioU: 7 },
-      { text: "🔥 ゆうすけ 9 ： 1 うらら", splitType: "CUSTOM", ratioY: 9, ratioU: 1 },
-      { text: "🔥 ゆうすけ 1 ： 9 うらら", splitType: "CUSTOM", ratioY: 1, ratioU: 9 }
-    ];
-
-    function openRouletteModal() {
-      document.getElementById('rouletteDisplay').textContent = "ボタンを押してスタート！";
-      document.getElementById('btnApplyRoulette').style.display = 'none';
-      document.getElementById('btnSpin').disabled = false;
-      document.getElementById('rouletteModal').classList.add('open');
-    }
-    function closeRouletteModal() {
-      document.getElementById('rouletteModal').classList.remove('open');
+    // メンバー削除
+    function removeMember(index) {
+      members.splice(index, 1);
+      renderMembers();
     }
 
-    function spinRoulette() {
-      const display = document.getElementById('rouletteDisplay');
-      const btnSpin = document.getElementById('btnSpin');
-      const btnApply = document.getElementById('btnApplyRoulette');
-      
-      btnSpin.disabled = true;
-      btnApply.style.display = 'none';
+    // --- ルーレット処理 --- //
 
+    // モーダルを開く
+    function openGambleModal() {
+      if (members.length < 2) {
+        alert("ｷﾞｬﾝﾌﾞるには、参加者を2人以上登録してね！");
+        return;
+      }
+      document.getElementById('roulette-display').innerText = '❓';
+      document.getElementById('spin-btn').disabled = false;
+      document.getElementById('gamble-modal').style.display = 'flex';
+    }
+
+    // モーダルを閉じる
+    function closeGambleModal() {
+      document.getElementById('gamble-modal').style.display = 'none';
+    }
+
+    // ルーレット回転演出 & 完全フラット抽選
+    function startRoulette() {
+      const display = document.getElementById('roulette-display');
+      const spinBtn = document.getElementById('spin-btn');
+      spinBtn.disabled = true; // 連打防止
+
+      // 完全フラット（Math.random）で当選者を決定
+      const winnerIndex = Math.floor(Math.random() * members.length);
+      const winner = members[winnerIndex];
+
+      let speed = 50;  // 切り替わり速度（ミリ秒）
       let counter = 0;
-      const speed = 60;
-      const totalSteps = 25; // 回転回数
+      const totalSwitches = 25; // カチカチ切り替わる回数
 
-      const timer = setInterval(() => {
-        const randomIndex = Math.floor(Math.random() * rouletteOptions.length);
-        display.textContent = rouletteOptions[randomIndex].text;
+      // アニメーション処理
+      function switchName() {
+        // 表示をランダム切り替え
+        const randomName = members[counter % members.length];
+        display.innerText = randomName;
         counter++;
 
-        if (counter >= totalSteps) {
-          clearInterval(timer);
-          rouletteResult = rouletteOptions[randomIndex];
-          display.textContent = `🎉 結果：${rouletteResult.text}`;
-          btnSpin.disabled = false;
-          btnApply.style.display = 'block';
-        }
-      }, speed);
-    }
-
-    function applyRouletteResult() {
-      if (!rouletteResult) return;
-
-      // 支払い者指定があれば反映
-      if (rouletteResult.payer) {
-        if (rouletteResult.payer === 'ゆうすけ') document.getElementById('payerYusuke').checked = true;
-        if (rouletteResult.payer === 'うらら') document.getElementById('payerUrara').checked = true;
-      }
-
-      if (rouletteResult.splitType === 'CUSTOM') {
-        if (!isCustomRatio) toggleRatio('');
-        document.getElementById('ratioYusuke').value = rouletteResult.ratioY;
-        document.getElementById('ratioUrara').value = rouletteResult.ratioU;
-      } else {
-        if (isCustomRatio) toggleRatio('');
-        document.getElementById('splitType').value = rouletteResult.splitType;
-      }
-
-      closeRouletteModal();
-    }
-
-    function toggleRatio(prefix) {
-      if (prefix === 'edit') {
-        isEditCustomRatio = !isEditCustomRatio;
-      } else if (prefix === 'tmpl') {
-        isTmplCustomRatio = !isTmplCustomRatio;
-      } else if (prefix === 'tmplUse') {
-        isTmplUseCustomRatio = !isTmplUseCustomRatio;
-      } else if (prefix === 'tmplEdit') {
-        isTmplEditCustomRatio = !isTmplEditCustomRatio;
-      } else {
-        isCustomRatio = !isCustomRatio;
-      }
-      
-      const currentMode = prefix === 'edit' ? isEditCustomRatio : (prefix === 'tmpl' ? isTmplCustomRatio : (prefix === 'tmplUse' ? isTmplUseCustomRatio : (prefix === 'tmplEdit' ? isTmplEditCustomRatio : isCustomRatio)));
-      const simpleArea = document.getElementById(prefix ? `${prefix}SimpleSplitArea` : 'simpleSplitArea');
-      const customArea = document.getElementById(prefix ? `${prefix}CustomSplitArea` : 'customSplitArea');
-      const btn = document.getElementById(prefix ? `${prefix}ToggleRatioBtn` : 'toggleRatioBtn');
-
-      if (currentMode) {
-        simpleArea.style.display = 'none';
-        customArea.style.display = 'block';
-        btn.textContent = 'ー シンプルに戻す';
-      } else {
-        simpleArea.style.display = 'block';
-        customArea.style.display = 'none';
-        btn.textContent = '＋ 割合を細かく設定';
-      }
-    }
-
-    function getRatioDisplayText(splitType, ratioY, ratioU) {
-      if (splitType === 'CUSTOM') {
-        return `ゆ${ratioY}：う${ratioU}`;
-      } else if (splitType === 'PAY_ALL') {
-        return '全額立替';
-      } else if (splitType === 'EQUAL') {
-        return '折半';
-      } else if (splitType && splitType.startsWith('RATIO_')) {
-        const parts = splitType.split('_');
-        return `ゆ${parts[1]}：う${parts[2]}`;
-      }
-      return '折半';
-    }
-
-    function initRealtimeSync() {
-      db.collection('transactions').onSnapshot(snapshot => {
-        transactions = [];
-        snapshot.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
-        updateView();
-      });
-
-      db.collection('settledGroups').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
-        settledGroups = [];
-        snapshot.forEach(doc => settledGroups.push({ id: doc.id, ...doc.data() }));
-        updateView();
-      });
-
-      db.collection('settings').doc('categories').onSnapshot(doc => {
-        if (doc.exists && doc.data().list) {
-          categories = doc.data().list;
+        if (counter < totalSwitches) {
+          setTimeout(switchName, speed);
         } else {
-          categories = defaultCategories;
-          db.collection('settings').doc('categories').set({ list: defaultCategories });
-        }
-        updateCategorySelect();
-        
-        if (document.getElementById('categoryModal').classList.contains('open')) {
-          renderCategoryModalList();
-        }
-      });
-
-      db.collection('fixedCosts').onSnapshot(snapshot => {
-        templates = [];
-        snapshot.forEach(doc => templates.push({ id: doc.id, ...doc.data() }));
-        templates.sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
-        renderTemplateSelectList();
-        renderTemplateManageList();
-      });
-    }
-
-    function updateCategorySelect() {
-      const selects = ['category', 'editCategory', 'tmplCategory', 'tmplUseCategory', 'tmplEditCategory'];
-      selects.forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        const currentVal = el.value;
-        el.innerHTML = '';
-        categories.forEach(cat => {
-          const opt = document.createElement('option');
-          opt.value = cat; opt.textContent = cat;
-          el.appendChild(opt);
-        });
-        if (categories.includes(currentVal)) el.value = currentVal;
-      });
-    }
-
-    /* ドラッグ＆ドロップ汎用処理 */
-    function enableDragAndDrop(listEl, onReorder) {
-      let draggedItem = null;
-      let draggedIndex = null;
-
-      const items = listEl.querySelectorAll('li');
-      items.forEach((li, index) => {
-        const handle = li.querySelector('.drag-handle');
-        if (!handle) return;
-
-        let touchTimer = null;
-        
-        handle.addEventListener('touchstart', (e) => {
-          touchTimer = setTimeout(() => {
-            draggedItem = li;
-            draggedIndex = index;
-            li.classList.add('dragging');
-          }, 150);
-        }, { passive: true });
-
-        handle.addEventListener('touchmove', (e) => {
-          if (!draggedItem) {
-            clearTimeout(touchTimer);
-            return;
-          }
-          e.preventDefault();
-          const touch = e.touches[0];
-          const target = document.elementFromPoint(touch.clientX, touch.clientY);
-          const closestLi = target ? target.closest('li') : null;
-
-          items.forEach(item => item.classList.remove('drag-over'));
-          if (closestLi && closestLi !== draggedItem && listEl.contains(closestLi)) {
-            closestLi.classList.add('drag-over');
-          }
-        }, { passive: false });
-
-        handle.addEventListener('touchend', (e) => {
-          clearTimeout(touchTimer);
-          if (!draggedItem) return;
-
-          const touch = e.changedTouches[0];
-          const target = document.elementFromPoint(touch.clientX, touch.clientY);
-          const closestLi = target ? target.closest('li') : null;
-
-          if (closestLi && closestLi !== draggedItem && listEl.contains(closestLi)) {
-            const targetIndex = Array.from(listEl.children).indexOf(closestLi);
-            onReorder(draggedIndex, targetIndex);
-          }
-
-          items.forEach(item => {
-            item.classList.remove('dragging');
-            item.classList.remove('drag-over');
-          });
-          draggedItem = null;
-        });
-
-        li.draggable = true;
-        li.addEventListener('dragstart', (e) => {
-          draggedItem = li;
-          draggedIndex = index;
-          li.classList.add('dragging');
-        });
-        li.addEventListener('dragover', (e) => {
-          e.preventDefault();
-          if (li !== draggedItem) li.classList.add('drag-over');
-        });
-        li.addEventListener('dragleave', () => {
-          li.classList.remove('drag-over');
-        });
-        li.addEventListener('drop', (e) => {
-          e.preventDefault();
-          li.classList.remove('drag-over');
-          if (draggedItem && li !== draggedItem) {
-            const targetIndex = index;
-            onReorder(draggedIndex, targetIndex);
-          }
-        });
-        li.addEventListener('dragend', () => {
-          li.classList.remove('dragging');
-          items.forEach(item => item.classList.remove('drag-over'));
-          draggedItem = null;
-        });
-      });
-    }
-
-    /* カテゴリーモーダル */
-    function openCategoryModal() {
-      renderCategoryModalList();
-      document.getElementById('categoryModal').classList.add('open');
-    }
-    function closeCategoryModal() {
-      document.getElementById('categoryModal').classList.remove('open');
-    }
-    function renderCategoryModalList() {
-      const modalList = document.getElementById('modalCategoryList');
-      modalList.innerHTML = '';
-      categories.forEach((cat, index) => {
-        const li = document.createElement('li');
-        li.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span class="drag-handle">☰</span>
-            <span style="font-weight: bold; color: var(--text-main);">${cat}</span>
-          </div>
-          <div class="btn-action-group">
-            <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
-          </div>
-        `;
-        modalList.appendChild(li);
-      });
-
-      enableDragAndDrop(modalList, async (fromIndex, toIndex) => {
-        const newCategories = [...categories];
-        const [moved] = newCategories.splice(fromIndex, 1);
-        newCategories.splice(toIndex, 0, moved);
-        categories = newCategories;
-        await db.collection('settings').doc('categories').set({ list: newCategories });
-      });
-    }
-
-    async function addCategory() {
-      const input = document.getElementById('newCategoryInput');
-      const name = input.value.trim();
-      if (!name) return;
-      if (categories.includes(name)) return alert('すでに存在する項目です');
-      const newCategories = [...categories, name];
-      await db.collection('settings').doc('categories').set({ list: newCategories });
-      input.value = '';
-    }
-    async function deleteCategory(index) {
-      if (categories.length <= 1) return alert('項目は最低1つ残す必要があります');
-      if (confirm(`「${categories[index]}」を削除しますか？`)) {
-        const newCategories = categories.filter((_, i) => i !== index);
-        await db.collection('settings').doc('categories').set({ list: newCategories });
-      }
-    }
-
-    /* 通常の個別記録の追加 */
-    async function addTransaction() {
-      const dateVal = document.getElementById('dateInput').value;
-      const payer = document.querySelector('input[name="payer"]:checked').value;
-      const category = document.getElementById('category').value;
-      const amount = Number(document.getElementById('amount').value);
-      const memo = document.getElementById('title').value;
-      const title = memo ? `${category}（${memo}）` : category;
-      
-      let splitType, ratioY = 1, ratioU = 1;
-      
-      if (isCustomRatio) {
-        splitType = 'CUSTOM';
-        ratioY = Number(document.getElementById('ratioYusuke').value) || 0;
-        ratioU = Number(document.getElementById('ratioUrara').value) || 0;
-        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
-      } else {
-        splitType = document.getElementById('splitType').value;
-      }
-
-      if (!dateVal) return alert('発生日を選択してください');
-      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
-
-      const formattedDate = dateVal.replace(/-/g, '/');
-
-      await db.collection('transactions').add({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU,
-        date: formattedDate, rawDate: dateVal, createdAt: Date.now()
-      });
-
-      document.getElementById('amount').value = '';
-      document.getElementById('title').value = '';
-      
-      if (isCustomRatio) {
-        isCustomRatio = false;
-        document.getElementById('simpleSplitArea').style.display = 'block';
-        document.getElementById('customSplitArea').style.display = 'none';
-        document.getElementById('toggleRatioBtn').textContent = '＋ 割合を細かく設定';
-      }
-      document.getElementById('splitType').value = 'EQUAL';
-      document.getElementById('ratioYusuke').value = '1';
-      document.getElementById('ratioUrara').value = '1';
-      document.getElementById('payerYusuke').checked = true;
-    }
-
-    /* 編集モーダル */
-    function openEditModal(id) {
-      const item = transactions.find(t => t.id === id);
-      if (!item) return;
-
-      document.getElementById('editId').value = item.id;
-      document.getElementById('editDateInput').value = item.rawDate || item.date.replace(/\//g, '-');
-      
-      const payerInput = document.querySelector(`input[name="editPayer"][value="${item.payer}"]`);
-      if (payerInput) payerInput.checked = true;
-
-      document.getElementById('editCategory').value = item.category || categories[0];
-      document.getElementById('editAmount').value = item.amount;
-      document.getElementById('editMemo').value = item.memo || '';
-      
-      const splitType = item.splitType || 'EQUAL';
-      
-      if (splitType === 'CUSTOM') {
-        isEditCustomRatio = true;
-        document.getElementById('editRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
-        document.getElementById('editRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
-      } else {
-        isEditCustomRatio = false;
-        document.getElementById('editSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
-      }
-
-      document.getElementById('editSimpleSplitArea').style.display = isEditCustomRatio ? 'none' : 'block';
-      document.getElementById('editCustomSplitArea').style.display = isEditCustomRatio ? 'block' : 'none';
-      document.getElementById('editToggleRatioBtn').textContent = isEditCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
-
-      document.getElementById('editModal').classList.add('open');
-    }
-
-    function closeEditModal() {
-      document.getElementById('editModal').classList.remove('open');
-    }
-
-    async function saveEditedTransaction() {
-      const id = document.getElementById('editId').value;
-      const dateVal = document.getElementById('editDateInput').value;
-      const payer = document.querySelector('input[name="editPayer"]:checked').value;
-      const category = document.getElementById('editCategory').value;
-      const amount = Number(document.getElementById('editAmount').value);
-      const memo = document.getElementById('editMemo').value;
-      
-      let splitType, ratioY = 1, ratioU = 1;
-      
-      if (isEditCustomRatio) {
-        splitType = 'CUSTOM';
-        ratioY = Number(document.getElementById('editRatioYusuke').value) || 0;
-        ratioU = Number(document.getElementById('editRatioUrara').value) || 0;
-        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
-      } else {
-        splitType = document.getElementById('editSplitType').value;
-      }
-
-      if (!dateVal) return alert('発生日を選択してください');
-      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
-
-      const formattedDate = dateVal.replace(/-/g, '/');
-      const title = memo ? `${category}（${memo}）` : category;
-
-      await db.collection('transactions').doc(id).update({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU,
-        date: formattedDate, rawDate: dateVal
-      });
-
-      closeEditModal();
-    }
-
-    async function deleteTransaction(id) {
-      if (confirm('この記録を削除しますか？')) {
-        await db.collection('transactions').doc(id).delete();
-      }
-    }
-
-    /* --- テンプレート関連 --- */
-    function openTemplateListModal() {
-      renderTemplateSelectList();
-      document.getElementById('templateListModal').classList.add('open');
-    }
-    function closeTemplateListModal() {
-      document.getElementById('templateListModal').classList.remove('open');
-    }
-    function openTemplateManageModal() {
-      renderTemplateManageList();
-      document.getElementById('templateManageModal').classList.add('open');
-    }
-    function closeTemplateManageModal() {
-      document.getElementById('templateManageModal').classList.remove('open');
-    }
-    function closeTemplateUseModal() {
-      document.getElementById('templateUseModal').classList.remove('open');
-    }
-    function closeTemplateEditModal() {
-      document.getElementById('templateEditModal').classList.remove('open');
-    }
-
-    function renderTemplateSelectList() {
-      const list = document.getElementById('templateSelectList');
-      list.innerHTML = '';
-      if (templates.length === 0) {
-        list.innerHTML = '<li style="color: var(--text-sub); text-align: center;">登録済みのテンプレートがありません。<br>「⚙️ テンプレートの設定・管理」から追加してください。</li>';
-        return;
-      }
-      templates.forEach(item => {
-        const li = document.createElement('li');
-        const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
-        const amtText = item.amount ? `${item.amount.toLocaleString()}円` : '金額未定';
-        li.innerHTML = `
-          <div class="item-info">
-            <div class="item-title">${item.title} (${amtText})</div>
-            <div class="item-sub">${item.payer}が支払い / ${typeText}</div>
-          </div>
-          <button class="btn-select-tmpl" onclick="selectTemplateToUse('${item.id}')">選択</button>
-        `;
-        list.appendChild(li);
-      });
-    }
-
-    function selectTemplateToUse(id) {
-      const item = templates.find(t => t.id === id);
-      if (!item) return;
-
-      closeTemplateListModal();
-
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      document.getElementById('tmplUseDateInput').value = `${yyyy}-${mm}-${dd}`;
-
-      const payerInput = document.querySelector(`input[name="tmplUsePayer"][value="${item.payer}"]`);
-      if (payerInput) payerInput.checked = true;
-
-      document.getElementById('tmplUseCategory').value = item.category || categories[0];
-      document.getElementById('tmplUseAmount').value = item.amount || '';
-      document.getElementById('tmplUseMemo').value = item.memo || '';
-
-      const splitType = item.splitType || 'EQUAL';
-      if (splitType === 'CUSTOM') {
-        isTmplUseCustomRatio = true;
-        document.getElementById('tmplUseRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
-        document.getElementById('tmplUseRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
-      } else {
-        isTmplUseCustomRatio = false;
-        document.getElementById('tmplUseSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
-      }
-
-      document.getElementById('tmplUseSimpleSplitArea').style.display = isTmplUseCustomRatio ? 'none' : 'block';
-      document.getElementById('tmplUseCustomSplitArea').style.display = isTmplUseCustomRatio ? 'block' : 'none';
-      document.getElementById('tmplUseToggleRatioBtn').textContent = isTmplUseCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
-
-      document.getElementById('templateUseModal').classList.add('open');
-    }
-
-    async function submitTemplateTransaction() {
-      const dateVal = document.getElementById('tmplUseDateInput').value;
-      const payer = document.querySelector('input[name="tmplUsePayer"]:checked').value;
-      const category = document.getElementById('tmplUseCategory').value;
-      const amount = Number(document.getElementById('tmplUseAmount').value);
-      const memo = document.getElementById('tmplUseMemo').value;
-      const title = memo ? `${category}（${memo}）` : category;
-
-      let splitType, ratioY = 1, ratioU = 1;
-      if (isTmplUseCustomRatio) {
-        splitType = 'CUSTOM';
-        ratioY = Number(document.getElementById('tmplUseRatioYusuke').value) || 0;
-        ratioU = Number(document.getElementById('tmplUseRatioUrara').value) || 0;
-        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
-      } else {
-        splitType = document.getElementById('tmplUseSplitType').value;
-      }
-
-      if (!dateVal) return alert('発生日を選択してください');
-      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
-
-      const formattedDate = dateVal.replace(/-/g, '/');
-
-      await db.collection('transactions').add({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU,
-        date: formattedDate, rawDate: dateVal, createdAt: Date.now()
-      });
-
-      closeTemplateUseModal();
-    }
-
-    function renderTemplateManageList() {
-      const list = document.getElementById('templateManageList');
-      list.innerHTML = '';
-      if (templates.length === 0) {
-        list.innerHTML = '<li style="color: var(--text-sub); text-align: center;">テンプレートはありません</li>';
-        return;
-      }
-      templates.forEach(item => {
-        const li = document.createElement('li');
-        const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
-        const amtText = item.amount ? `${item.amount.toLocaleString()}円` : '金額未定';
-        li.innerHTML = `
-          <span class="drag-handle">☰</span>
-          <div class="item-info">
-            <div class="item-title">${item.title} (${amtText})</div>
-            <div class="item-sub">${item.payer}が支払い / ${typeText}</div>
-          </div>
-          <div class="btn-action-group">
-            <button class="btn-edit" onclick="openTemplateEditModal('${item.id}')">編集</button>
-            <button class="btn-delete" onclick="deleteTemplate('${item.id}')">削除</button>
-          </div>
-        `;
-        list.appendChild(li);
-      });
-
-      enableDragAndDrop(list, async (fromIndex, toIndex) => {
-        const newTemplates = [...templates];
-        const [moved] = newTemplates.splice(fromIndex, 1);
-        newTemplates.splice(toIndex, 0, moved);
-        templates = newTemplates;
-
-        const batch = db.batch();
-        templates.forEach((t, idx) => {
-          const ref = db.collection('fixedCosts').doc(t.id);
-          batch.update(ref, { order: idx });
-        });
-        await batch.commit();
-      });
-    }
-
-    async function addTemplate() {
-      const payer = document.querySelector('input[name="tmplPayer"]:checked').value;
-      const category = document.getElementById('tmplCategory').value;
-      const amount = Number(document.getElementById('tmplAmount').value) || 0;
-      const memo = document.getElementById('tmplMemo').value;
-      const title = memo ? `${category}（${memo}）` : category;
-      
-      let splitType, ratioY = 1, ratioU = 1;
-      if (isTmplCustomRatio) {
-        splitType = 'CUSTOM';
-        ratioY = Number(document.getElementById('tmplRatioYusuke').value) || 0;
-        ratioU = Number(document.getElementById('tmplRatioUrara').value) || 0;
-        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
-      } else {
-        splitType = document.getElementById('tmplSplitType').value;
-      }
-
-      const nextOrder = templates.length > 0 ? (templates[templates.length - 1].order ?? Date.now()) + 1 : Date.now();
-
-      await db.collection('fixedCosts').add({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU,
-        createdAt: Date.now(), order: nextOrder
-      });
-
-      document.getElementById('tmplAmount').value = '';
-      document.getElementById('tmplMemo').value = '';
-    }
-
-    function openTemplateEditModal(id) {
-      const item = templates.find(t => t.id === id);
-      if (!item) return;
-
-      document.getElementById('tmplEditId').value = item.id;
-      
-      const payerInput = document.querySelector(`input[name="tmplEditPayer"][value="${item.payer}"]`);
-      if (payerInput) payerInput.checked = true;
-
-      document.getElementById('tmplEditCategory').value = item.category || categories[0];
-      document.getElementById('tmplEditAmount').value = item.amount || '';
-      document.getElementById('tmplEditMemo').value = item.memo || '';
-
-      const splitType = item.splitType || 'EQUAL';
-      if (splitType === 'CUSTOM') {
-        isTmplEditCustomRatio = true;
-        document.getElementById('tmplEditRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
-        document.getElementById('tmplEditRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
-      } else {
-        isTmplEditCustomRatio = false;
-        document.getElementById('tmplEditSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
-      }
-
-      document.getElementById('tmplEditSimpleSplitArea').style.display = isTmplEditCustomRatio ? 'none' : 'block';
-      document.getElementById('tmplEditCustomSplitArea').style.display = isTmplEditCustomRatio ? 'block' : 'none';
-      document.getElementById('tmplEditToggleRatioBtn').textContent = isTmplEditCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
-
-      document.getElementById('templateEditModal').classList.add('open');
-    }
-
-    async function saveEditedTemplate() {
-      const id = document.getElementById('tmplEditId').value;
-      const payer = document.querySelector('input[name="tmplEditPayer"]:checked').value;
-      const category = document.getElementById('tmplEditCategory').value;
-      const amount = Number(document.getElementById('tmplEditAmount').value) || 0;
-      const memo = document.getElementById('tmplEditMemo').value;
-      const title = memo ? `${category}（${memo}）` : category;
-
-      let splitType, ratioY = 1, ratioU = 1;
-      if (isTmplEditCustomRatio) {
-        splitType = 'CUSTOM';
-        ratioY = Number(document.getElementById('tmplEditRatioYusuke').value) || 0;
-        ratioU = Number(document.getElementById('tmplEditRatioUrara').value) || 0;
-        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
-      } else {
-        splitType = document.getElementById('tmplEditSplitType').value;
-      }
-
-      await db.collection('fixedCosts').doc(id).update({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU
-      });
-
-      closeTemplateEditModal();
-    }
-
-    async function deleteTemplate(id) {
-      if (confirm('このテンプレートを削除しますか？')) {
-        await db.collection('fixedCosts').doc(id).delete();
-      }
-    }
-
-    /* 清算関連 */
-    async function deleteSettledGroup(id, event) {
-      event.stopPropagation();
-      if (confirm('この精算履歴を削除しますか？（復元はできません）')) {
-        await db.collection('settledGroups').doc(id).delete();
-      }
-    }
-
-    function toggleAccordion(id) {
-      const details = document.getElementById(`details-${id}`);
-      const icon = document.getElementById(`icon-${id}`);
-      if (details) {
-        const isOpen = details.classList.contains('open');
-        if (isOpen) {
-          details.classList.remove('open');
-          icon.textContent = '▶';
-        } else {
-          details.classList.add('open');
-          icon.textContent = '▼';
+          // 最後に完全平等に選ばれた当選者を表示！
+          display.innerText = `👑 ${winner}`;
+          display.style.color = "#ff3b30";
+          setTimeout(() => {
+            alert(`🎉 今回の全額奢りは 【${winner}】 さんに決定！`);
+            display.style.color = "#007aff";
+          }, 300);
         }
       }
+
+      switchName();
     }
-
-    async function settleUp() {
-      if (transactions.length === 0) return alert('未精算の記録がありません。');
-
-      if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
-        const settledDate = new Date().toLocaleString('ja-JP');
-        let balance = 0;
-
-        transactions.forEach((t) => {
-          let yRatio = 1, uRatio = 1;
-          if (t.splitType === 'CUSTOM') {
-            yRatio = t.ratioY !== undefined ? t.ratioY : 1;
-            uRatio = t.ratioU !== undefined ? t.ratioU : 1;
-          } else if (t.splitType === 'PAY_ALL') {
-            if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
-            else { yRatio = 1; uRatio = 0; }
-          } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
-            const parts = t.splitType.split('_');
-            yRatio = parseInt(parts[1], 10);
-            uRatio = parseInt(parts[2], 10);
-          }
-
-          const totalRatio = yRatio + uRatio;
-          if (totalRatio > 0) {
-            if (t.payer === 'ゆうすけ') {
-              balance += Math.round((t.amount * uRatio) / totalRatio);
-            } else if (t.payer === 'うらら') {
-              balance -= Math.round((t.amount * yRatio) / totalRatio);
-            }
-          }
-        });
-
-        let summaryText = "貸し借りなし（清算済み）";
-        if (balance > 0) {
-          summaryText = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円`;
-        } else if (balance < 0) {
-          summaryText = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円`;
-        }
-
-        const itemsToSave = [...transactions].sort((a, b) => a.createdAt - b.createdAt);
-        
-        await db.collection('settledGroups').add({
-          date: settledDate,
-          items: itemsToSave,
-          summaryText: summaryText,
-          createdAt: Date.now()
-        });
-
-        const batch = db.batch();
-        transactions.forEach(t => {
-          const ref = db.collection('transactions').doc(t.id);
-          batch.delete(ref);
-        });
-        await batch.commit();
-      }
-    }
-
-    function updateView() {
-      let balance = 0;
-      
-      transactions.forEach((t) => {
-        let yRatio = 1, uRatio = 1;
-
-        if (t.splitType === 'CUSTOM') {
-          yRatio = t.ratioY !== undefined ? t.ratioY : 1;
-          uRatio = t.ratioU !== undefined ? t.ratioU : 1;
-        } else if (t.splitType === 'PAY_ALL') {
-          if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
-          else { yRatio = 1; uRatio = 0; }
-        } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
-          const parts = t.splitType.split('_');
-          yRatio = parseInt(parts[1], 10);
-          uRatio = parseInt(parts[2], 10);
-        }
-
-        const totalRatio = yRatio + uRatio;
-        if (totalRatio > 0) {
-          if (t.payer === 'ゆうすけ') {
-            balance += Math.round((t.amount * uRatio) / totalRatio);
-          } else if (t.payer === 'うらら') {
-            balance -= Math.round((t.amount * yRatio) / totalRatio);
-          }
-        }
-      });
-
-      const sortKey = document.getElementById('sortKey').value;
-      const sortOrder = document.getElementById('sortOrder').value;
-      
-      let sortedTransactions = [...transactions];
-      sortedTransactions.sort((a, b) => {
-        let valA = a[sortKey];
-        let valB = b[sortKey];
-        
-        if (sortKey === 'date') {
-          valA = a.rawDate || a.date;
-          valB = b.rawDate || b.date;
-        }
-        
-        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-        return 0;
-      });
-
-      const historyList = document.getElementById('historyList');
-      historyList.innerHTML = '';
-
-      if (sortedTransactions.length === 0) {
-        historyList.innerHTML = '<li style="justify-content: center; color: var(--text-sub);">未精算の記録はありません</li>';
-      }
-
-      sortedTransactions.forEach((t) => {
-        const li = document.createElement('li');
-        const typeText = getRatioDisplayText(t.splitType, t.ratioY, t.ratioU);
-        
-        li.innerHTML = `
-          <div class="item-info">
-            <div class="item-title">${t.title} - ${t.amount.toLocaleString()}円</div>
-            <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText})</div>
-          </div>
-          <div class="btn-action-group">
-            <button class="btn-edit" onclick="openEditModal('${t.id}')">編集</button>
-            <button class="btn-delete" onclick="deleteTransaction('${t.id}')">削除</button>
-          </div>
-        `;
-        historyList.appendChild(li);
-      });
-
-      const resultBox = document.getElementById('resultBox');
-      if (balance > 0) {
-        resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
-      } else if (balance < 0) {
-        resultBox.textContent = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円 支払う`;
-      } else {
-        resultBox.textContent = `貸し借りなし（清算済み）`;
-      }
-
-      const settledList = document.getElementById('settledHistoryList');
-      settledList.innerHTML = '';
-
-      if (settledGroups.length === 0) {
-        settledList.innerHTML = '<p style="text-align: center; color: var(--text-sub); font-size: 0.85em;">過去の精算履歴はありません</p>';
-      } else {
-        settledGroups.forEach((group) => {
-          const totalAmount = group.items.reduce((sum, item) => sum + item.amount, 0);
-          const div = document.createElement('div');
-          div.className = 'settlement-block';
-          
-          let itemsHtml = group.items.map(i => {
-            const typeText = getRatioDisplayText(i.splitType, i.ratioY, i.ratioU);
-            return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
-          }).join('<br>');
-
-          const summaryDisp = group.summaryText ? group.summaryText : '清算額データなし';
-
-          div.innerHTML = `
-            <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
-              <div class="settlement-title-info">
-                <span class="accordion-icon" id="icon-${group.id}">▶</span>
-                <div>
-                  <div>精算日時: ${group.date}</div>
-                  <div style="font-size: 0.9em; color: var(--primary-color); font-weight: bold; margin-top: 2px;">
-                    ${summaryDisp}
-                  </div>
-                  <div style="font-size: 0.8em; color: var(--text-sub); font-weight: normal; margin-top: 2px;">
-                    ${group.items.length}件 / 総利用額 ${totalAmount.toLocaleString()}円
-                  </div>
-                </div>
-              </div>
-              <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
-            </div>
-            <div class="settlement-details" id="details-${group.id}">
-              ${itemsHtml}
-            </div>
-          `;
-          settledList.appendChild(div);
-        });
-      }
-    }
-
-    setDefaultDate();
-    initRealtimeSync();
   </script>
 </body>
 </html>
