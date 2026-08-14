@@ -32,6 +32,11 @@
     .item-title { font-weight: bold; color: #333; }
     .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
     
+    /* 割合カスタム入力 */
+    .custom-ratio-inputs { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; background: #f8f9fa; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
+    .custom-ratio-inputs input { margin-bottom: 0; width: 60px; text-align: center; font-size: 1.1em; font-weight: bold; }
+    .custom-ratio-inputs span { font-weight: bold; color: #555; font-size: 0.9em; }
+
     /* 並べ替えコントロール */
     .sort-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; background: #f1f3f5; padding: 8px 12px; border-radius: 8px; font-size: 0.85em; }
     .sort-controls label { margin-bottom: 0; font-weight: normal; }
@@ -93,11 +98,25 @@
       <label>詳細・メモ（任意）</label>
       <input type="text" id="title" placeholder="例: スーパーでの買い物">
 
-      <label>割り方</label>
-      <select id="splitType" data-detailed="false">
-        <option value="EQUAL">折半</option>
-        <option value="PAY_ALL">全額立替</option>
-      </select>
+      <div id="simpleSplitArea">
+        <label>割り方</label>
+        <select id="splitType">
+          <option value="EQUAL">折半</option>
+          <option value="PAY_ALL">全額立替</option>
+        </select>
+      </div>
+
+      <div id="customSplitArea" style="display: none;">
+        <label>割り方</label>
+        <div class="custom-ratio-inputs">
+          <span>ゆうすけ</span>
+          <input type="number" id="ratioYusuke" value="1" min="0">
+          <span>：</span>
+          <span>うらら</span>
+          <input type="number" id="ratioUrara" value="1" min="0">
+        </div>
+      </div>
+
       <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
         <button type="button" class="btn-link" id="toggleRatioBtn" onclick="toggleRatio('')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
       </div>
@@ -173,11 +192,25 @@
         <label>詳細・メモ（任意）</label>
         <input type="text" id="editMemo" placeholder="例: スーパーでの買い物">
 
-        <label>割り方</label>
-        <select id="editSplitType" data-detailed="false">
-          <option value="EQUAL">折半</option>
-          <option value="PAY_ALL">全額立替</option>
-        </select>
+        <div id="editSimpleSplitArea">
+          <label>割り方</label>
+          <select id="editSplitType">
+            <option value="EQUAL">折半</option>
+            <option value="PAY_ALL">全額立替</option>
+          </select>
+        </div>
+
+        <div id="editCustomSplitArea" style="display: none;">
+          <label>割り方</label>
+          <div class="custom-ratio-inputs">
+            <span>ゆうすけ</span>
+            <input type="number" id="editRatioYusuke" value="1" min="0">
+            <span>：</span>
+            <span>うらら</span>
+            <input type="number" id="editRatioUrara" value="1" min="0">
+          </div>
+        </div>
+
         <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
           <button type="button" class="btn-link" id="editToggleRatioBtn" onclick="toggleRatio('edit')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
         </div>
@@ -205,20 +238,10 @@
     let transactions = [];
     let settledGroups = [];
     let categories = defaultCategories;
-
-    // 割合表示用のマップ
-    const splitRatioMap = {
-      'RATIO_9_1': 'ゆ9:う1',
-      'RATIO_8_2': 'ゆ8:う2',
-      'RATIO_7_3': 'ゆ7:う3',
-      'RATIO_6_4': 'ゆ6:う4',
-      'EQUAL': '折半',
-      'RATIO_4_6': 'ゆ4:う6',
-      'RATIO_3_7': 'ゆ3:う7',
-      'RATIO_2_8': 'ゆ2:う8',
-      'RATIO_1_9': 'ゆ1:う9',
-      'PAY_ALL': '全額立替'
-    };
+    
+    // 割合切り替えのステータス管理
+    let isCustomRatio = false;
+    let isEditCustomRatio = false;
 
     function setDefaultDate() {
       const today = new Date();
@@ -229,46 +252,43 @@
     }
 
     function toggleRatio(prefix) {
-      const selectId = prefix === 'edit' ? 'editSplitType' : 'splitType';
-      const btnId = prefix === 'edit' ? 'editToggleRatioBtn' : 'toggleRatioBtn';
-      const select = document.getElementById(selectId);
-      const btn = document.getElementById(btnId);
+      const isEdit = prefix === 'edit';
       
-      const isDetailed = select.getAttribute('data-detailed') === 'true';
-      const currentVal = select.value;
-
-      if (isDetailed) {
-        // シンプルな選択肢に戻す
-        select.innerHTML = `
-          <option value="EQUAL">折半</option>
-          <option value="PAY_ALL">全額立替</option>
-        `;
-        // 詳細な割合が選ばれていた場合は「折半」に戻す
-        if (!['EQUAL', 'PAY_ALL'].includes(currentVal)) {
-          select.value = 'EQUAL';
-        } else {
-          select.value = currentVal;
-        }
-        select.setAttribute('data-detailed', 'false');
-        btn.textContent = '＋ 割合を細かく設定';
+      if (isEdit) {
+        isEditCustomRatio = !isEditCustomRatio;
       } else {
-        // 詳細な選択肢を表示する
-        select.innerHTML = `
-          <option value="EQUAL">折半</option>
-          <option value="RATIO_9_1">ゆうすけ9：うらら1</option>
-          <option value="RATIO_8_2">ゆうすけ8：うらら2</option>
-          <option value="RATIO_7_3">ゆうすけ7：うらら3</option>
-          <option value="RATIO_6_4">ゆうすけ6：うらら4</option>
-          <option value="RATIO_4_6">ゆうすけ4：うらら6</option>
-          <option value="RATIO_3_7">ゆうすけ3：うらら7</option>
-          <option value="RATIO_2_8">ゆうすけ2：うらら8</option>
-          <option value="RATIO_1_9">ゆうすけ1：うらら9</option>
-          <option value="PAY_ALL">全額立替</option>
-        `;
-        select.value = currentVal;
-        select.setAttribute('data-detailed', 'true');
-        btn.textContent = 'ー シンプルに戻す';
+        isCustomRatio = !isCustomRatio;
       }
+      
+      const currentMode = isEdit ? isEditCustomRatio : isCustomRatio;
+      const simpleArea = document.getElementById(isEdit ? 'editSimpleSplitArea' : 'simpleSplitArea');
+      const customArea = document.getElementById(isEdit ? 'editCustomSplitArea' : 'customSplitArea');
+      const btn = document.getElementById(isEdit ? 'editToggleRatioBtn' : 'toggleRatioBtn');
+
+      if (currentMode) {
+        simpleArea.style.display = 'none';
+        customArea.style.display = 'block';
+        btn.textContent = 'ー シンプルに戻す';
+      } else {
+        simpleArea.style.display = 'block';
+        customArea.style.display = 'none';
+        btn.textContent = '＋ 割合を細かく設定';
+      }
+    }
+
+    function getRatioDisplayText(splitType, ratioY, ratioU) {
+      if (splitType === 'CUSTOM') {
+        return `ゆ${ratioY}：う${ratioU}`;
+      } else if (splitType === 'PAY_ALL') {
+        return '全額立替';
+      } else if (splitType === 'EQUAL') {
+        return '折半';
+      } else if (splitType && splitType.startsWith('RATIO_')) {
+        // 過去のプルダウン仕様データの互換対応
+        const parts = splitType.split('_');
+        return `ゆ${parts[1]}：う${parts[2]}`;
+      }
+      return '折半';
     }
 
     function initRealtimeSync() {
@@ -388,7 +408,17 @@
       const amount = Number(document.getElementById('amount').value);
       const memo = document.getElementById('title').value;
       const title = memo ? `${category}（${memo}）` : category;
-      const splitType = document.getElementById('splitType').value;
+      
+      let splitType, ratioY = 1, ratioU = 1;
+      
+      if (isCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('ratioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('ratioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('splitType').value;
+      }
 
       if (!dateVal) return alert('発生日を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
@@ -396,19 +426,23 @@
       const formattedDate = dateVal.replace(/-/g, '/');
 
       await db.collection('transactions').add({
-        payer, category, memo, amount, title, splitType,
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
         date: formattedDate, rawDate: dateVal, createdAt: Date.now()
       });
 
+      // 入力フォームをリセット
       document.getElementById('amount').value = '';
       document.getElementById('title').value = '';
       
-      // 追加後は割り方をシンプルな状態に戻す
-      const mainSelect = document.getElementById('splitType');
-      if (mainSelect.getAttribute('data-detailed') === 'true') {
-        toggleRatio('');
+      if (isCustomRatio) {
+        isCustomRatio = false;
+        document.getElementById('simpleSplitArea').style.display = 'block';
+        document.getElementById('customSplitArea').style.display = 'none';
+        document.getElementById('toggleRatioBtn').textContent = '＋ 割合を細かく設定';
       }
-      mainSelect.value = 'EQUAL';
+      document.getElementById('splitType').value = 'EQUAL';
+      document.getElementById('ratioYusuke').value = '1';
+      document.getElementById('ratioUrara').value = '1';
     }
 
     function openEditModal(id) {
@@ -423,17 +457,20 @@
       document.getElementById('editMemo').value = item.memo || '';
       
       const splitType = item.splitType || 'EQUAL';
-      const isDetailed = !['EQUAL', 'PAY_ALL'].includes(splitType);
-      const editSelect = document.getElementById('editSplitType');
       
-      // 保存されている割合が詳細設定の場合は、自動で詳細メニューを展開する
-      if (isDetailed && editSelect.getAttribute('data-detailed') !== 'true') {
-        toggleRatio('edit');
-      } else if (!isDetailed && editSelect.getAttribute('data-detailed') === 'true') {
-        toggleRatio('edit');
+      // カスタム割合かどうかでUIを切り替え
+      if (splitType === 'CUSTOM') {
+        isEditCustomRatio = true;
+        document.getElementById('editRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
+        document.getElementById('editRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
+      } else {
+        isEditCustomRatio = false;
+        document.getElementById('editSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
       }
-      
-      editSelect.value = splitType;
+
+      document.getElementById('editSimpleSplitArea').style.display = isEditCustomRatio ? 'none' : 'block';
+      document.getElementById('editCustomSplitArea').style.display = isEditCustomRatio ? 'block' : 'none';
+      document.getElementById('editToggleRatioBtn').textContent = isEditCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
 
       document.getElementById('editModal').classList.add('open');
     }
@@ -449,7 +486,17 @@
       const category = document.getElementById('editCategory').value;
       const amount = Number(document.getElementById('editAmount').value);
       const memo = document.getElementById('editMemo').value;
-      const splitType = document.getElementById('editSplitType').value;
+      
+      let splitType, ratioY = 1, ratioU = 1;
+      
+      if (isEditCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('editRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('editRatioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('editSplitType').value;
+      }
 
       if (!dateVal) return alert('発生日を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
@@ -458,7 +505,7 @@
       const title = memo ? `${category}（${memo}）` : category;
 
       await db.collection('transactions').doc(id).update({
-        payer, category, memo, amount, title, splitType,
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
         date: formattedDate, rawDate: dateVal
       });
 
@@ -521,33 +568,29 @@
       
       // 合計金額の計算（負担割合の反映）
       transactions.forEach((t) => {
-        let yusukeRatio = 5;
-        let uraraRatio = 5;
+        let yRatio = 1, uRatio = 1;
 
-        switch (t.splitType) {
-          case 'RATIO_9_1': yusukeRatio = 9; uraraRatio = 1; break;
-          case 'RATIO_8_2': yusukeRatio = 8; uraraRatio = 2; break;
-          case 'RATIO_7_3': yusukeRatio = 7; uraraRatio = 3; break;
-          case 'RATIO_6_4': yusukeRatio = 6; uraraRatio = 4; break;
-          case 'EQUAL':     yusukeRatio = 5; uraraRatio = 5; break;
-          case 'RATIO_4_6': yusukeRatio = 4; uraraRatio = 6; break;
-          case 'RATIO_3_7': yusukeRatio = 3; uraraRatio = 7; break;
-          case 'RATIO_2_8': yusukeRatio = 2; uraraRatio = 8; break;
-          case 'RATIO_1_9': yusukeRatio = 1; uraraRatio = 9; break;
-          case 'PAY_ALL':
-            // 立て替えた人＝負担額0、立て替えられた人＝負担額10
-            if (t.payer === 'ゆうすけ') { yusukeRatio = 0; uraraRatio = 10; }
-            else { yusukeRatio = 10; uraraRatio = 0; }
-            break;
-          default:
-            yusukeRatio = 5; uraraRatio = 5;
+        if (t.splitType === 'CUSTOM') {
+          yRatio = t.ratioY !== undefined ? t.ratioY : 1;
+          uRatio = t.ratioU !== undefined ? t.ratioU : 1;
+        } else if (t.splitType === 'PAY_ALL') {
+          // 立て替えた人＝負担0、相手＝全額負担の割合とみなす
+          if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
+          else { yRatio = 1; uRatio = 0; }
+        } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
+          // 過去データ用
+          const parts = t.splitType.split('_');
+          yRatio = parseInt(parts[1], 10);
+          uRatio = parseInt(parts[2], 10);
         }
 
-        // 払った人が、相手の負担分（金額×相手の割合/10）を受け取る
-        if (t.payer === 'ゆうすけ') {
-          balance += Math.round((t.amount * uraraRatio) / 10);
-        } else if (t.payer === 'うらら') {
-          balance -= Math.round((t.amount * yusukeRatio) / 10);
+        const totalRatio = yRatio + uRatio;
+        if (totalRatio > 0) {
+          if (t.payer === 'ゆうすけ') {
+            balance += Math.round((t.amount * uRatio) / totalRatio);
+          } else if (t.payer === 'うらら') {
+            balance -= Math.round((t.amount * yRatio) / totalRatio);
+          }
         }
       });
 
@@ -580,7 +623,7 @@
 
       sortedTransactions.forEach((t) => {
         const li = document.createElement('li');
-        const typeText = splitRatioMap[t.splitType] || '折半';
+        const typeText = getRatioDisplayText(t.splitType, t.ratioY, t.ratioU);
         
         li.innerHTML = `
           <div class="item-info">
@@ -618,7 +661,7 @@
           div.className = 'settlement-block';
           
           let itemsHtml = group.items.map(i => {
-            const typeText = splitRatioMap[i.splitType] || '折半';
+            const typeText = getRatioDisplayText(i.splitType, i.ratioY, i.ratioU);
             return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
           }).join('<br>');
 
