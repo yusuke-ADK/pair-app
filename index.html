@@ -948,505 +948,369 @@
       btnSpin.disabled = true;
       btnApply.style.display = 'none';
 
-      const duration = 3000; // 3秒間
+      const duration = 5000; // 全体で5秒間
       const startTime = Date.now();
-      let stepInterval = 50; // 初期切り替え間隔 (ms)
+      let lastStepTime = 0;
 
       function updateSlot() {
         const now = Date.now();
         const elapsed = now - startTime;
 
-        if (elapsed < duration) {
-          // ランダム表示
-          const randomIndex = Math.floor(Math.random() * rouletteOptions.length);
-          rouletteResult = rouletteOptions[randomIndex];
-          display.textContent = rouletteResult.text;
-          playTickSE();
-
-          // 終盤に向けて間隔を徐々に広げる（減速演出）
-          stepInterval = 50 + Math.pow(elapsed / duration, 2) * 300;
-          setTimeout(updateSlot, stepInterval);
-        } else {
-          // 最終決定
+        if (elapsed >= duration) {
+          // 5秒経過で最終結果を表示
           const finalIndex = Math.floor(Math.random() * rouletteOptions.length);
           rouletteResult = rouletteOptions[finalIndex];
-          display.textContent = rouletteResult.text;
-          playFanfareSE();
-
+          display.textContent = `🎉 結果：${rouletteResult.text}`;
+          playFanfareSE(); // 決定ファンファーレ
           btnSpin.disabled = false;
           btnApply.style.display = 'block';
+          return;
         }
+
+        // 時間が経つにつれて徐々にスロットの回転速度を落とすイージング演出
+        const progress = elapsed / duration;
+        // 最初は70ms間隔、後半は最大350ms間隔に減速
+        const currentInterval = 70 + Math.pow(progress, 2.5) * 280;
+
+        if (now - lastStepTime >= currentInterval) {
+          const randomIndex = Math.floor(Math.random() * rouletteOptions.length);
+          display.textContent = rouletteOptions[randomIndex].text;
+          playTickSE(); // カチッ音
+          lastStepTime = now;
+        }
+
+        requestAnimationFrame(updateSlot);
       }
 
-      updateSlot();
+      requestAnimationFrame(updateSlot);
     }
 
     function applyRouletteResult() {
       if (!rouletteResult) return;
 
+      // 支払い者指定があれば反映
       if (rouletteResult.payer) {
-        if (rouletteResult.payer === 'ゆうすけ') {
-          document.getElementById('payerYusuke').checked = true;
-        } else {
-          document.getElementById('payerUrara').checked = true;
-        }
+        if (rouletteResult.payer === 'ゆうすけ') document.getElementById('payerYusuke').checked = true;
+        if (rouletteResult.payer === 'うらら') document.getElementById('payerUrara').checked = true;
       }
 
-      if (rouletteResult.splitType === 'EQUAL') {
-        setRatioState('', false);
-        document.getElementById('splitType').value = 'EQUAL';
-      } else if (rouletteResult.splitType === 'PAY_ALL') {
-        setRatioState('', false);
-        document.getElementById('splitType').value = 'PAY_ALL';
-      } else if (rouletteResult.splitType === 'CUSTOM') {
-        setRatioState('', true);
+      if (rouletteResult.splitType === 'CUSTOM') {
+        if (!isCustomRatio) toggleRatio('');
         document.getElementById('ratioYusuke').value = rouletteResult.ratioY;
         document.getElementById('ratioUrara').value = rouletteResult.ratioU;
+      } else {
+        if (isCustomRatio) toggleRatio('');
+        document.getElementById('splitType').value = rouletteResult.splitType;
       }
 
       closeRouletteModal();
     }
 
-    /* --- 割合入力の切り替え処理 --- */
     function toggleRatio(prefix) {
-      if (prefix === '') {
-        setRatioState('', !isCustomRatio);
-      } else if (prefix === 'edit') {
-        setRatioState('edit', !isEditCustomRatio);
+      if (prefix === 'edit') {
+        isEditCustomRatio = !isEditCustomRatio;
       } else if (prefix === 'tmpl') {
-        setRatioState('tmpl', !isTmplCustomRatio);
+        isTmplCustomRatio = !isTmplCustomRatio;
       } else if (prefix === 'tmplUse') {
-        setRatioState('tmplUse', !isTmplUseCustomRatio);
+        isTmplUseCustomRatio = !isTmplUseCustomRatio;
       } else if (prefix === 'tmplEdit') {
-        setRatioState('tmplEdit', !isTmplEditCustomRatio);
+        isTmplEditCustomRatio = !isTmplEditCustomRatio;
+      } else {
+        isCustomRatio = !isCustomRatio;
       }
-    }
+      
+      const currentMode = prefix === 'edit' ? isEditCustomRatio : (prefix === 'tmpl' ? isTmplCustomRatio : (prefix === 'tmplUse' ? isTmplUseCustomRatio : (prefix === 'tmplEdit' ? isTmplEditCustomRatio : isCustomRatio)));
+      const simpleArea = document.getElementById(prefix ? `${prefix}SimpleSplitArea` : 'simpleSplitArea');
+      const customArea = document.getElementById(prefix ? `${prefix}CustomSplitArea` : 'customSplitArea');
+      const btn = document.getElementById(prefix ? `${prefix}ToggleRatioBtn` : 'toggleRatioBtn');
 
-    function setRatioState(prefix, isCustom) {
-      const p = prefix ? prefix + (prefix.endsWith('Edit') || prefix.endsWith('Use') ? '' : '') : '';
-      const simpleArea = document.getElementById(p ? `${p}SimpleSplitArea` : 'simpleSplitArea');
-      const customArea = document.getElementById(p ? `${p}CustomSplitArea` : 'customSplitArea');
-      const toggleBtn = document.getElementById(p ? `${p}ToggleRatioBtn` : 'toggleRatioBtn');
-
-      if (prefix === '') isCustomRatio = isCustom;
-      if (prefix === 'edit') isEditCustomRatio = isCustom;
-      if (prefix === 'tmpl') isTmplCustomRatio = isCustom;
-      if (prefix === 'tmplUse') isTmplUseCustomRatio = isCustom;
-      if (prefix === 'tmplEdit') isTmplEditCustomRatio = isCustom;
-
-      if (isCustom) {
+      if (currentMode) {
         simpleArea.style.display = 'none';
         customArea.style.display = 'block';
-        toggleBtn.textContent = '← シンプルな選択に戻す';
+        btn.textContent = 'ー シンプルに戻す';
       } else {
         simpleArea.style.display = 'block';
         customArea.style.display = 'none';
-        toggleBtn.textContent = '＋ 割合を細かく設定';
+        btn.textContent = '＋ 割合を細かく設定';
       }
     }
 
-    /* --- カテゴリー関連機能 --- */
-    function renderCategorySelects() {
-      const selectIds = ['category', 'editCategory', 'tmplCategory', 'tmplUseCategory', 'tmplEditCategory'];
-      selectIds.forEach(id => {
-        const select = document.getElementById(id);
-        if (!select) return;
-        const currentVal = select.value;
-        select.innerHTML = '';
-        categories.forEach(cat => {
-          const opt = document.createElement('option');
-          opt.value = cat;
-          opt.textContent = cat;
-          select.appendChild(opt);
-        });
-        if (categories.includes(currentVal)) {
-          select.value = currentVal;
-        }
-      });
-    }
-
-    function openCategoryModal() {
-      renderModalCategoryList();
-      document.getElementById('categoryModal').classList.add('open');
-    }
-    function closeCategoryModal() {
-      document.getElementById('categoryModal').classList.remove('open');
-    }
-
-    function renderModalCategoryList() {
-      const list = document.getElementById('modalCategoryList');
-      list.innerHTML = '';
-      categories.forEach((cat, index) => {
-        const li = document.createElement('li');
-        li.draggable = true;
-        li.dataset.index = index;
-
-        li.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span class="drag-handle">☰</span>
-            <span class="item-title">${cat}</span>
-          </div>
-          <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
-        `;
-        setupDragAndDrop(li, index, categories, saveCategoriesToFirebase, renderModalCategoryList);
-        list.appendChild(li);
-      });
-    }
-
-    function addCategory() {
-      const input = document.getElementById('newCategoryInput');
-      const val = input.value.trim();
-      if (!val) return;
-      if (categories.includes(val)) {
-        alert('その項目は既に存在します');
-        return;
+    function getRatioDisplayText(splitType, ratioY, ratioU) {
+      if (splitType === 'CUSTOM') {
+        return `ゆ${ratioY}：う${ratioU}`;
+      } else if (splitType === 'PAY_ALL') {
+        return '全額立替';
+      } else if (splitType === 'EQUAL') {
+        return '折半';
+      } else if (splitType && splitType.startsWith('RATIO_')) {
+        const parts = splitType.split('_');
+        return `ゆ${parts[1]}：う${parts[2]}`;
       }
-      categories.push(val);
-      input.value = '';
-      saveCategoriesToFirebase();
-      renderModalCategoryList();
+      return '折半';
     }
 
-    function deleteCategory(index) {
-      if (categories.length <= 1) {
-        alert('項目は最低1つ必要です');
-        return;
-      }
-      if (confirm(`「${categories[index]}」を削除しますか？`)) {
-        categories.splice(index, 1);
-        saveCategoriesToFirebase();
-        renderModalCategoryList();
-      }
-    }
-
-    function saveCategoriesToFirebase() {
-      db.collection('settings').doc('categories').set({ list: categories })
-        .then(() => renderCategorySelects())
-        .catch(err => console.error("カテゴリー保存エラー:", err));
-    }
-
-    /* --- ドラッグ＆ドロップ汎用処理 --- */
-    let dragSrcIndex = null;
-    function setupDragAndDrop(liElement, index, dataArray, saveCallback, reRenderCallback) {
-      liElement.addEventListener('dragstart', (e) => {
-        dragSrcIndex = index;
-        liElement.classList.add('dragging');
-        e.dataTransfer.effectAllowed = 'move';
+    function initRealtimeSync() {
+      db.collection('transactions').onSnapshot(snapshot => {
+        transactions = [];
+        snapshot.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
+        updateView();
       });
 
-      liElement.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-        liElement.classList.add('drag-over');
+      db.collection('settledGroups').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
+        settledGroups = [];
+        snapshot.forEach(doc => settledGroups.push({ id: doc.id, ...doc.data() }));
+        updateView();
       });
 
-      liElement.addEventListener('dragleave', () => {
-        liElement.classList.remove('drag-over');
-      });
-
-      liElement.addEventListener('drop', (e) => {
-        e.preventDefault();
-        liElement.classList.remove('drag-over');
-        if (dragSrcIndex !== null && dragSrcIndex !== index) {
-          const item = dataArray.splice(dragSrcIndex, 1)[0];
-          dataArray.splice(index, 0, item);
-          saveCallback();
-          reRenderCallback();
-        }
-      });
-
-      liElement.addEventListener('dragend', () => {
-        liElement.classList.remove('dragging');
-        dragSrcIndex = null;
-      });
-    }
-
-    /* --- トランザクション処理 --- */
-    function getSplitDataFromUI(prefix) {
-      const isCustom = prefix === '' ? isCustomRatio :
-                       prefix === 'edit' ? isEditCustomRatio :
-                       prefix === 'tmpl' ? isTmplCustomRatio :
-                       prefix === 'tmplUse' ? isTmplUseCustomRatio :
-                       prefix === 'tmplEdit' ? isTmplEditCustomRatio : false;
-
-      const p = prefix ? prefix : '';
-      if (isCustom) {
-        const ratioY = parseFloat(document.getElementById(p ? `${p}RatioYusuke` : 'ratioYusuke').value) || 0;
-        const ratioU = parseFloat(document.getElementById(p ? `${p}RatioUrara` : 'ratioUrara').value) || 0;
-        return { splitType: 'CUSTOM', ratioY, ratioU };
-      } else {
-        const splitType = document.getElementById(p ? `${p}SplitType` : 'splitType').value;
-        return { splitType, ratioY: 1, ratioU: 1 };
-      }
-    }
-
-    function addTransaction() {
-      const date = document.getElementById('dateInput').value;
-      const payer = document.querySelector('input[name="payer"]:checked').value;
-      const category = document.getElementById('category').value;
-      const amount = parseFloat(document.getElementById('amount').value);
-      const title = document.getElementById('title').value.trim();
-      const splitData = getSplitDataFromUI('');
-
-      if (!date) { alert('発生日を選択してください'); return; }
-      if (isNaN(amount) || amount <= 0) { alert('正しい金額を入力してください'); return; }
-
-      const data = {
-        date,
-        payer,
-        category,
-        amount,
-        title,
-        splitType: splitData.splitType,
-        ratioY: splitData.ratioY,
-        ratioU: splitData.ratioU,
-        settled: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      db.collection('transactions').add(data)
-        .then(() => {
-          document.getElementById('amount').value = '';
-          document.getElementById('title').value = '';
-          setRatioState('', false);
-        })
-        .catch(err => alert("追加エラー: " + err.message));
-    }
-
-    /* --- リアルタイムデータ同期 --- */
-    function initDataListeners() {
-      // カテゴリーの取得
       db.collection('settings').doc('categories').onSnapshot(doc => {
         if (doc.exists && doc.data().list) {
           categories = doc.data().list;
         } else {
           categories = defaultCategories;
+          db.collection('settings').doc('categories').set({ list: defaultCategories });
         }
-        renderCategorySelects();
+        updateCategorySelect();
+        
+        if (document.getElementById('categoryModal').classList.contains('open')) {
+          renderCategoryModalList();
+        }
       });
 
-      // トランザクション（未精算）の取得
-      db.collection('transactions')
-        .where('settled', '==', false)
-        .onSnapshot(snapshot => {
-          transactions = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          updateView();
+      db.collection('fixedCosts').onSnapshot(snapshot => {
+        templates = [];
+        snapshot.forEach(doc => templates.push({ id: doc.id, ...doc.data() }));
+        templates.sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
+        renderTemplateSelectList();
+        renderTemplateManageList();
+      });
+    }
+
+    function updateCategorySelect() {
+      const selects = ['category', 'editCategory', 'tmplCategory', 'tmplUseCategory', 'tmplEditCategory'];
+      selects.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const currentVal = el.value;
+        el.innerHTML = '';
+        categories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat; opt.textContent = cat;
+          el.appendChild(opt);
         });
-
-      // 精算済みグループの取得
-      db.collection('settlements')
-        .orderBy('settledAt', 'desc')
-        .onSnapshot(snapshot => {
-          settledGroups = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-          renderSettledHistory();
-        });
-
-      // テンプレートの取得
-      db.collection('templates').onSnapshot(snapshot => {
-        templates = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        if (templates.length > 0 && templates[0].order !== undefined) {
-          templates.sort((a, b) => a.order - b.order);
-        }
+        if (categories.includes(currentVal)) el.value = currentVal;
       });
     }
 
-    function updateView() {
-      renderHistory();
-      calculateSettlement();
-    }
+    /* ドラッグ＆ドロップ汎用処理 */
+    function enableDragAndDrop(listEl, onReorder) {
+      let draggedItem = null;
+      let draggedIndex = null;
 
-    function renderHistory() {
-      const list = document.getElementById('historyList');
-      list.innerHTML = '';
+      const items = listEl.querySelectorAll('li');
+      items.forEach((li, index) => {
+        const handle = li.querySelector('.drag-handle');
+        if (!handle) return;
 
-      const key = document.getElementById('sortKey').value;
-      const order = document.getElementById('sortOrder').value;
+        let touchTimer = null;
+        
+        handle.addEventListener('touchstart', (e) => {
+          touchTimer = setTimeout(() => {
+            draggedItem = li;
+            draggedIndex = index;
+            li.classList.add('dragging');
+          }, 150);
+        }, { passive: true });
 
-      const sorted = [...transactions].sort((a, b) => {
-        let valA = a[key] || '';
-        let valB = b[key] || '';
-
-        if (key === 'createdAt') {
-          valA = a.createdAt ? a.createdAt.seconds : 0;
-          valB = b.createdAt ? b.createdAt.seconds : 0;
-        }
-
-        if (valA < valB) return order === 'asc' ? -1 : 1;
-        if (valA > valB) return order === 'asc' ? 1 : -1;
-        return 0;
-      });
-
-      sorted.forEach(item => {
-        const li = document.createElement('li');
-        let ratioStr = '';
-        if (item.splitType === 'EQUAL') ratioStr = ' (折半)';
-        else if (item.splitType === 'PAY_ALL') ratioStr = ' (全額立替)';
-        else if (item.splitType === 'CUSTOM') ratioStr = ` (${item.ratioY}:${item.ratioU})`;
-
-        li.innerHTML = `
-          <div class="item-info">
-            <div class="item-title">${item.title || item.category}</div>
-            <div class="item-sub">${item.date} | ${item.payer}が支払い | ${item.category}${ratioStr}</div>
-          </div>
-          <div style="display: flex; align-items: center; gap: 8px;">
-            <span style="font-weight: bold; font-size: 1.05em;">¥${item.amount.toLocaleString()}</span>
-            <div class="btn-action-group">
-              <button class="btn-edit" onclick="openEditModal('${item.id}')">編集</button>
-              <button class="btn-delete" onclick="deleteTransaction('${item.id}')">削除</button>
-            </div>
-          </div>
-        `;
-        list.appendChild(li);
-      });
-    }
-
-    function calculateSettlement() {
-      let yusukePaid = 0;
-      let uraraPaid = 0;
-      let yusukeShouldPay = 0;
-      let uraraShouldPay = 0;
-
-      transactions.forEach(t => {
-        const amt = t.amount;
-        if (t.payer === 'ゆうすけ') yusukePaid += amt;
-        if (t.payer === 'うらら') uraraPaid += amt;
-
-        if (t.splitType === 'EQUAL') {
-          yusukeShouldPay += amt / 2;
-          uraraShouldPay += amt / 2;
-        } else if (t.splitType === 'PAY_ALL') {
-          if (t.payer === 'ゆうすけ') uraraShouldPay += amt;
-          else yusukeShouldPay += amt;
-        } else if (t.splitType === 'CUSTOM') {
-          const totalRatio = (t.ratioY || 0) + (t.ratioU || 0);
-          if (totalRatio > 0) {
-            yusukeShouldPay += amt * (t.ratioY / totalRatio);
-            uraraShouldPay += amt * (t.ratioU / totalRatio);
+        handle.addEventListener('touchmove', (e) => {
+          if (!draggedItem) {
+            clearTimeout(touchTimer);
+            return;
           }
-        }
+          e.preventDefault();
+          const touch = e.touches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          const closestLi = target ? target.closest('li') : null;
+
+          items.forEach(item => item.classList.remove('drag-over'));
+          if (closestLi && closestLi !== draggedItem && listEl.contains(closestLi)) {
+            closestLi.classList.add('drag-over');
+          }
+        }, { passive: false });
+
+        handle.addEventListener('touchend', (e) => {
+          clearTimeout(touchTimer);
+          if (!draggedItem) return;
+
+          const touch = e.changedTouches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          const closestLi = target ? target.closest('li') : null;
+
+          if (closestLi && closestLi !== draggedItem && listEl.contains(closestLi)) {
+            const targetIndex = Array.from(listEl.children).indexOf(closestLi);
+            onReorder(draggedIndex, targetIndex);
+          }
+
+          items.forEach(item => {
+            item.classList.remove('dragging');
+            item.classList.remove('drag-over');
+          });
+          draggedItem = null;
+        });
+
+        li.draggable = true;
+        li.addEventListener('dragstart', (e) => {
+          draggedItem = li;
+          draggedIndex = index;
+          li.classList.add('dragging');
+        });
+        li.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          if (li !== draggedItem) li.classList.add('drag-over');
+        });
+        li.addEventListener('dragleave', () => {
+          li.classList.remove('drag-over');
+        });
+        li.addEventListener('drop', (e) => {
+          e.preventDefault();
+          li.classList.remove('drag-over');
+          if (draggedItem && li !== draggedItem) {
+            const targetIndex = index;
+            onReorder(draggedIndex, targetIndex);
+          }
+        });
+        li.addEventListener('dragend', () => {
+          li.classList.remove('dragging');
+          items.forEach(item => item.classList.remove('drag-over'));
+          draggedItem = null;
+        });
       });
-
-      const yusukeBalance = yusukePaid - yusukeShouldPay;
-      const resultBox = document.getElementById('resultBox');
-
-      if (Math.abs(yusukeBalance) < 1) {
-        resultBox.textContent = "貸し借りはありません";
-      } else if (yusukeBalance > 0) {
-        resultBox.textContent = `うらら ➔ ゆうすけ : ¥${Math.round(yusukeBalance).toLocaleString()}`;
-      } else {
-        resultBox.textContent = `ゆうすけ ➔ うらら : ¥${Math.round(-yusukeBalance).toLocaleString()}`;
-      }
     }
 
-    function deleteTransaction(id) {
-      if (confirm('この記録を削除しますか？')) {
-        db.collection('transactions').doc(id).delete();
-      }
+    /* カテゴリーモーダル */
+    function openCategoryModal() {
+      renderCategoryModalList();
+      document.getElementById('categoryModal').classList.add('open');
     }
-
-    /* --- 精算（リセット）処理 --- */
-    function settleUp() {
-      if (transactions.length === 0) {
-        alert('未精算の記録がありません');
-        return;
-      }
-      if (!confirm('現在の未精算分をすべて精算済みにしますか？')) return;
-
-      const batch = db.batch();
-      const settlementRef = db.collection('settlements').doc();
-      
-      const settledData = {
-        settledAt: firebase.firestore.FieldValue.serverTimestamp(),
-        resultText: document.getElementById('resultBox').textContent,
-        itemCount: transactions.length,
-        items: transactions
-      };
-
-      batch.set(settlementRef, settledData);
-
-      transactions.forEach(t => {
-        const ref = db.collection('transactions').doc(t.id);
-        batch.update(ref, { settled: true, settlementId: settlementRef.id });
-      });
-
-      batch.commit().then(() => {
-        alert('精算を完了しました！');
-      }).catch(err => alert("精算エラー: " + err.message));
+    function closeCategoryModal() {
+      document.getElementById('categoryModal').classList.remove('open');
     }
-
-    function renderSettledHistory() {
-      const container = document.getElementById('settledHistoryList');
-      container.innerHTML = '';
-
-      if (settledGroups.length === 0) {
-        container.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 0.85em;">過去の精算履歴はありません</div>';
-        return;
-      }
-
-      settledGroups.forEach(group => {
-        const dateStr = group.settledAt ? new Date(group.settledAt.seconds * 1000).toLocaleDateString('ja-JP') : '日付不明';
-        const block = document.createElement('div');
-        block.className = 'settlement-block';
-
-        let itemsHtml = '';
-        if (group.items && Array.isArray(group.items)) {
-          itemsHtml = group.items.map(i => `
-            <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 0.85em;">
-              <span>${i.date} [${i.payer}] ${i.title || i.category}</span>
-              <span>¥${i.amount.toLocaleString()}</span>
-            </div>
-          `).join('');
-        }
-
-        block.innerHTML = `
-          <div class="settlement-header" onclick="toggleAccordion(this)">
-            <div class="settlement-title-info">
-              <span>🗓️ ${dateStr}</span>
-              <span style="color: var(--primary-color); font-weight: bold;">${group.resultText}</span>
-            </div>
-            <span class="accordion-icon">▼ (${group.itemCount || 0}件)</span>
+    function renderCategoryModalList() {
+      const modalList = document.getElementById('modalCategoryList');
+      modalList.innerHTML = '';
+      categories.forEach((cat, index) => {
+        const li = document.createElement('li');
+        li.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="drag-handle">☰</span>
+            <span style="font-weight: bold; color: var(--text-main);">${cat}</span>
           </div>
-          <div class="settlement-details">
-            ${itemsHtml}
+          <div class="btn-action-group">
+            <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
           </div>
         `;
-        container.appendChild(block);
+        modalList.appendChild(li);
+      });
+
+      enableDragAndDrop(modalList, async (fromIndex, toIndex) => {
+        const newCategories = [...categories];
+        const [moved] = newCategories.splice(fromIndex, 1);
+        newCategories.splice(toIndex, 0, moved);
+        categories = newCategories;
+        await db.collection('settings').doc('categories').set({ list: newCategories });
       });
     }
 
-    function toggleAccordion(header) {
-      const details = header.nextElementSibling;
-      const icon = header.querySelector('.accordion-icon');
-      details.classList.toggle('open');
-      if (details.classList.contains('open')) {
-        icon.textContent = icon.textContent.replace('▼', '▲');
-      } else {
-        icon.textContent = icon.textContent.replace('▲', '▼');
+    async function addCategory() {
+      const input = document.getElementById('newCategoryInput');
+      const name = input.value.trim();
+      if (!name) return;
+      if (categories.includes(name)) return alert('すでに存在する項目です');
+      const newCategories = [...categories, name];
+      await db.collection('settings').doc('categories').set({ list: newCategories });
+      input.value = '';
+    }
+    async function deleteCategory(index) {
+      if (categories.length <= 1) return alert('項目は最低1つ残す必要があります');
+      if (confirm(`「${categories[index]}」を削除しますか？`)) {
+        const newCategories = categories.filter((_, i) => i !== index);
+        await db.collection('settings').doc('categories').set({ list: newCategories });
       }
     }
 
-    /* --- 記録の編集モーダル関連 --- */
-    function openEditModal(id) {
-      const t = transactions.find(item => item.id === id);
-      if (!t) return;
-
-      document.getElementById('editId').value = t.id;
-      document.getElementById('editDateInput').value = t.date;
-      if (t.payer === 'ゆうすけ') document.getElementById('editPayerYusuke').checked = true;
-      else document.getElementById('editPayerUrara').checked = true;
-
-      document.getElementById('editCategory').value = t.category;
-      document.getElementById('editAmount').value = t.amount;
-      document.getElementById('editMemo').value = t.title || '';
-
-      if (t.splitType === 'CUSTOM') {
-        setRatioState('edit', true);
-        document.getElementById('editRatioYusuke').value = t.ratioY || 1;
-        document.getElementById('editRatioUrara').value = t.ratioU || 1;
+    /* 通常の個別記録の追加 */
+    async function addTransaction() {
+      const dateVal = document.getElementById('dateInput').value;
+      const payer = document.querySelector('input[name="payer"]:checked').value;
+      const category = document.getElementById('category').value;
+      const amount = Number(document.getElementById('amount').value);
+      const memo = document.getElementById('title').value;
+      const title = memo ? `${category}（${memo}）` : category;
+      
+      let splitType, ratioY = 1, ratioU = 1;
+      
+      if (isCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('ratioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('ratioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
       } else {
-        setRatioState('edit', false);
-        document.getElementById('editSplitType').value = t.splitType || 'EQUAL';
+        splitType = document.getElementById('splitType').value;
       }
+
+      if (!dateVal) return alert('発生日を選択してください');
+      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
+
+      const formattedDate = dateVal.replace(/-/g, '/');
+
+      await db.collection('transactions').add({
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        date: formattedDate, rawDate: dateVal, createdAt: Date.now()
+      });
+
+      document.getElementById('amount').value = '';
+      document.getElementById('title').value = '';
+      
+      if (isCustomRatio) {
+        isCustomRatio = false;
+        document.getElementById('simpleSplitArea').style.display = 'block';
+        document.getElementById('customSplitArea').style.display = 'none';
+        document.getElementById('toggleRatioBtn').textContent = '＋ 割合を細かく設定';
+      }
+      document.getElementById('splitType').value = 'EQUAL';
+      document.getElementById('ratioYusuke').value = '1';
+      document.getElementById('ratioUrara').value = '1';
+      document.getElementById('payerYusuke').checked = true;
+    }
+
+    /* 編集モーダル */
+    function openEditModal(id) {
+      const item = transactions.find(t => t.id === id);
+      if (!item) return;
+
+      document.getElementById('editId').value = item.id;
+      document.getElementById('editDateInput').value = item.rawDate || item.date.replace(/\//g, '-');
+      
+      const payerInput = document.querySelector(`input[name="editPayer"][value="${item.payer}"]`);
+      if (payerInput) payerInput.checked = true;
+
+      document.getElementById('editCategory').value = item.category || categories[0];
+      document.getElementById('editAmount').value = item.amount;
+      document.getElementById('editMemo').value = item.memo || '';
+      
+      const splitType = item.splitType || 'EQUAL';
+      
+      if (splitType === 'CUSTOM') {
+        isEditCustomRatio = true;
+        document.getElementById('editRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
+        document.getElementById('editRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
+      } else {
+        isEditCustomRatio = false;
+        document.getElementById('editSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
+      }
+
+      document.getElementById('editSimpleSplitArea').style.display = isEditCustomRatio ? 'none' : 'block';
+      document.getElementById('editCustomSplitArea').style.display = isEditCustomRatio ? 'block' : 'none';
+      document.getElementById('editToggleRatioBtn').textContent = isEditCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
 
       document.getElementById('editModal').classList.add('open');
     }
@@ -1455,33 +1319,46 @@
       document.getElementById('editModal').classList.remove('open');
     }
 
-    function saveEditedTransaction() {
+    async function saveEditedTransaction() {
       const id = document.getElementById('editId').value;
-      const date = document.getElementById('editDateInput').value;
+      const dateVal = document.getElementById('editDateInput').value;
       const payer = document.querySelector('input[name="editPayer"]:checked').value;
       const category = document.getElementById('editCategory').value;
-      const amount = parseFloat(document.getElementById('editAmount').value);
-      const title = document.getElementById('editMemo').value.trim();
-      const splitData = getSplitDataFromUI('edit');
+      const amount = Number(document.getElementById('editAmount').value);
+      const memo = document.getElementById('editMemo').value;
+      
+      let splitType, ratioY = 1, ratioU = 1;
+      
+      if (isEditCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('editRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('editRatioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('editSplitType').value;
+      }
 
-      if (!date) { alert('発生日を選択してください'); return; }
-      if (isNaN(amount) || amount <= 0) { alert('正しい金額を入力してください'); return; }
+      if (!dateVal) return alert('発生日を選択してください');
+      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
-      db.collection('transactions').doc(id).update({
-        date,
-        payer,
-        category,
-        amount,
-        title,
-        splitType: splitData.splitType,
-        ratioY: splitData.ratioY,
-        ratioU: splitData.ratioU
-      }).then(() => {
-        closeEditModal();
-      }).catch(err => alert("更新エラー: " + err.message));
+      const formattedDate = dateVal.replace(/-/g, '/');
+      const title = memo ? `${category}（${memo}）` : category;
+
+      await db.collection('transactions').doc(id).update({
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        date: formattedDate, rawDate: dateVal
+      });
+
+      closeEditModal();
     }
 
-    /* --- テンプレート管理・利用モーダル関連 --- */
+    async function deleteTransaction(id) {
+      if (confirm('この記録を削除しますか？')) {
+        await db.collection('transactions').doc(id).delete();
+      }
+    }
+
+    /* --- テンプレート関連 --- */
     function openTemplateListModal() {
       renderTemplateSelectList();
       document.getElementById('templateListModal').classList.add('open');
@@ -1489,233 +1366,441 @@
     function closeTemplateListModal() {
       document.getElementById('templateListModal').classList.remove('open');
     }
-
-    function renderTemplateSelectList() {
-      const list = document.getElementById('templateSelectList');
-      list.innerHTML = '';
-
-      if (templates.length === 0) {
-        list.innerHTML = '<li style="text-align: center; color: var(--text-sub);">登録されたテンプレートはありません</li>';
-        return;
-      }
-
-      templates.forEach(tmpl => {
-        const li = document.createElement('li');
-        let amountText = tmpl.amount ? `¥${tmpl.amount.toLocaleString()}` : '金額未定';
-        li.innerHTML = `
-          <div class="item-info">
-            <div class="item-title">${tmpl.title || tmpl.category} (${amountText})</div>
-            <div class="item-sub">${tmpl.payer} | ${tmpl.category}</div>
-          </div>
-          <button class="btn-select-tmpl" onclick="selectTemplate('${tmpl.id}')">選択</button>
-        `;
-        list.appendChild(li);
-      });
-    }
-
-    let selectedTemplateData = null;
-    function selectTemplate(id) {
-      const tmpl = templates.find(t => t.id === id);
-      if (!tmpl) return;
-
-      selectedTemplateData = tmpl;
-      closeTemplateListModal();
-
-      const today = new Date().toISOString().split('T')[0];
-      document.getElementById('tmplUseDateInput').value = today;
-
-      if (tmpl.payer === 'ゆうすけ') document.getElementById('tmplUsePayerYusuke').checked = true;
-      else document.getElementById('tmplUsePayerUrara').checked = true;
-
-      document.getElementById('tmplUseCategory').value = tmpl.category;
-      document.getElementById('tmplUseAmount').value = tmpl.amount || '';
-      document.getElementById('tmplUseMemo').value = tmpl.title || '';
-
-      if (tmpl.splitType === 'CUSTOM') {
-        setRatioState('tmplUse', true);
-        document.getElementById('tmplUseRatioYusuke').value = tmpl.ratioY || 1;
-        document.getElementById('tmplUseRatioUrara').value = tmpl.ratioU || 1;
-      } else {
-        setRatioState('tmplUse', false);
-        document.getElementById('tmplUseSplitType').value = tmpl.splitType || 'EQUAL';
-      }
-
-      document.getElementById('templateUseModal').classList.add('open');
-    }
-
-    function closeTemplateUseModal() {
-      document.getElementById('templateUseModal').classList.remove('open');
-    }
-
-    function submitTemplateTransaction() {
-      const date = document.getElementById('tmplUseDateInput').value;
-      const payer = document.querySelector('input[name="tmplUsePayer"]:checked').value;
-      const category = document.getElementById('tmplUseCategory').value;
-      const amount = parseFloat(document.getElementById('tmplUseAmount').value);
-      const title = document.getElementById('tmplUseMemo').value.trim();
-      const splitData = getSplitDataFromUI('tmplUse');
-
-      if (!date) { alert('発生日を選択してください'); return; }
-      if (isNaN(amount) || amount <= 0) { alert('正しい金額を入力してください'); return; }
-
-      const data = {
-        date,
-        payer,
-        category,
-        amount,
-        title,
-        splitType: splitData.splitType,
-        ratioY: splitData.ratioY,
-        ratioU: splitData.ratioU,
-        settled: false,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      db.collection('transactions').add(data)
-        .then(() => {
-          closeTemplateUseModal();
-        })
-        .catch(err => alert("追加エラー: " + err.message));
-    }
-
     function openTemplateManageModal() {
-      closeTemplateListModal();
       renderTemplateManageList();
       document.getElementById('templateManageModal').classList.add('open');
     }
     function closeTemplateManageModal() {
       document.getElementById('templateManageModal').classList.remove('open');
     }
+    function closeTemplateUseModal() {
+      document.getElementById('templateUseModal').classList.remove('open');
+    }
+    function closeTemplateEditModal() {
+      document.getElementById('templateEditModal').classList.remove('open');
+    }
 
-    function addTemplate() {
-      const payer = document.querySelector('input[name="tmplPayer"]:checked').value;
-      const category = document.getElementById('tmplCategory').value;
-      const amountVal = document.getElementById('tmplAmount').value;
-      const amount = amountVal ? parseFloat(amountVal) : null;
-      const title = document.getElementById('tmplMemo').value.trim();
-      const splitData = getSplitDataFromUI('tmpl');
+    function renderTemplateSelectList() {
+      const list = document.getElementById('templateSelectList');
+      list.innerHTML = '';
+      if (templates.length === 0) {
+        list.innerHTML = '<li style="color: var(--text-sub); text-align: center;">登録済みのテンプレートがありません。<br>「⚙️ テンプレートの設定・管理」から追加してください。</li>';
+        return;
+      }
+      templates.forEach(item => {
+        const li = document.createElement('li');
+        const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
+        const amtText = item.amount ? `${item.amount.toLocaleString()}円` : '金額未定';
+        li.innerHTML = `
+          <div class="item-info">
+            <div class="item-title">${item.title} (${amtText})</div>
+            <div class="item-sub">${item.payer}が支払い / ${typeText}</div>
+          </div>
+          <button class="btn-select-tmpl" onclick="selectTemplateToUse('${item.id}')">選択</button>
+        `;
+        list.appendChild(li);
+      });
+    }
 
-      const data = {
-        payer,
-        category,
-        amount,
-        title,
-        splitType: splitData.splitType,
-        ratioY: splitData.ratioY,
-        ratioU: splitData.ratioU,
-        order: templates.length
-      };
+    function selectTemplateToUse(id) {
+      const item = templates.find(t => t.id === id);
+      if (!item) return;
 
-      db.collection('templates').add(data)
-        .then(() => {
-          document.getElementById('tmplAmount').value = '';
-          document.getElementById('tmplMemo').value = '';
-          setRatioState('tmpl', false);
-          renderTemplateManageList();
-        })
-        .catch(err => alert("テンプレート追加エラー: " + err.message));
+      closeTemplateListModal();
+
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById('tmplUseDateInput').value = `${yyyy}-${mm}-${dd}`;
+
+      const payerInput = document.querySelector(`input[name="tmplUsePayer"][value="${item.payer}"]`);
+      if (payerInput) payerInput.checked = true;
+
+      document.getElementById('tmplUseCategory').value = item.category || categories[0];
+      document.getElementById('tmplUseAmount').value = item.amount || '';
+      document.getElementById('tmplUseMemo').value = item.memo || '';
+
+      const splitType = item.splitType || 'EQUAL';
+      if (splitType === 'CUSTOM') {
+        isTmplUseCustomRatio = true;
+        document.getElementById('tmplUseRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
+        document.getElementById('tmplUseRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
+      } else {
+        isTmplUseCustomRatio = false;
+        document.getElementById('tmplUseSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
+      }
+
+      document.getElementById('tmplUseSimpleSplitArea').style.display = isTmplUseCustomRatio ? 'none' : 'block';
+      document.getElementById('tmplUseCustomSplitArea').style.display = isTmplUseCustomRatio ? 'block' : 'none';
+      document.getElementById('tmplUseToggleRatioBtn').textContent = isTmplUseCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
+
+      document.getElementById('templateUseModal').classList.add('open');
+    }
+
+    async function submitTemplateTransaction() {
+      const dateVal = document.getElementById('tmplUseDateInput').value;
+      const payer = document.querySelector('input[name="tmplUsePayer"]:checked').value;
+      const category = document.getElementById('tmplUseCategory').value;
+      const amount = Number(document.getElementById('tmplUseAmount').value);
+      const memo = document.getElementById('tmplUseMemo').value;
+      const title = memo ? `${category}（${memo}）` : category;
+
+      let splitType, ratioY = 1, ratioU = 1;
+      if (isTmplUseCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('tmplUseRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('tmplUseRatioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('tmplUseSplitType').value;
+      }
+
+      if (!dateVal) return alert('発生日を選択してください');
+      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
+
+      const formattedDate = dateVal.replace(/-/g, '/');
+
+      await db.collection('transactions').add({
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        date: formattedDate, rawDate: dateVal, createdAt: Date.now()
+      });
+
+      closeTemplateUseModal();
     }
 
     function renderTemplateManageList() {
       const list = document.getElementById('templateManageList');
       list.innerHTML = '';
-
-      templates.forEach((tmpl, index) => {
+      if (templates.length === 0) {
+        list.innerHTML = '<li style="color: var(--text-sub); text-align: center;">テンプレートはありません</li>';
+        return;
+      }
+      templates.forEach(item => {
         const li = document.createElement('li');
-        li.draggable = true;
-        li.dataset.index = index;
-
-        let amountText = tmpl.amount ? `¥${tmpl.amount.toLocaleString()}` : '金額未定';
+        const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
+        const amtText = item.amount ? `${item.amount.toLocaleString()}円` : '金額未定';
         li.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 8px;" class="item-info">
-            <span class="drag-handle">☰</span>
-            <div>
-              <div class="item-title">${tmpl.title || tmpl.category} (${amountText})</div>
-              <div class="item-sub">${tmpl.payer} | ${tmpl.category}</div>
-            </div>
+          <span class="drag-handle">☰</span>
+          <div class="item-info">
+            <div class="item-title">${item.title} (${amtText})</div>
+            <div class="item-sub">${item.payer}が支払い / ${typeText}</div>
           </div>
           <div class="btn-action-group">
-            <button class="btn-edit" onclick="openTemplateEditModal('${tmpl.id}')">編集</button>
-            <button class="btn-delete" onclick="deleteTemplate('${tmpl.id}')">削除</button>
+            <button class="btn-edit" onclick="openTemplateEditModal('${item.id}')">編集</button>
+            <button class="btn-delete" onclick="deleteTemplate('${item.id}')">削除</button>
           </div>
         `;
-        setupDragAndDrop(li, index, templates, saveTemplateOrder, renderTemplateManageList);
         list.appendChild(li);
       });
-    }
 
-    function saveTemplateOrder() {
-      const batch = db.batch();
-      templates.forEach((tmpl, idx) => {
-        const ref = db.collection('templates').doc(tmpl.id);
-        batch.update(ref, { order: idx });
+      enableDragAndDrop(list, async (fromIndex, toIndex) => {
+        const newTemplates = [...templates];
+        const [moved] = newTemplates.splice(fromIndex, 1);
+        newTemplates.splice(toIndex, 0, moved);
+        templates = newTemplates;
+
+        const batch = db.batch();
+        templates.forEach((t, idx) => {
+          const ref = db.collection('fixedCosts').doc(t.id);
+          batch.update(ref, { order: idx });
+        });
+        await batch.commit();
       });
-      batch.commit();
     }
 
-    function deleteTemplate(id) {
-      if (confirm('このテンプレートを削除しますか？')) {
-        db.collection('templates').doc(id).delete()
-          .then(() => renderTemplateManageList());
+    async function addTemplate() {
+      const payer = document.querySelector('input[name="tmplPayer"]:checked').value;
+      const category = document.getElementById('tmplCategory').value;
+      const amount = Number(document.getElementById('tmplAmount').value) || 0;
+      const memo = document.getElementById('tmplMemo').value;
+      const title = memo ? `${category}（${memo}）` : category;
+      
+      let splitType, ratioY = 1, ratioU = 1;
+      if (isTmplCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('tmplRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('tmplRatioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('tmplSplitType').value;
       }
+
+      const nextOrder = templates.length > 0 ? (templates[templates.length - 1].order ?? Date.now()) + 1 : Date.now();
+
+      await db.collection('fixedCosts').add({
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        createdAt: Date.now(), order: nextOrder
+      });
+
+      document.getElementById('tmplAmount').value = '';
+      document.getElementById('tmplMemo').value = '';
     }
 
     function openTemplateEditModal(id) {
-      const tmpl = templates.find(t => t.id === id);
-      if (!tmpl) return;
+      const item = templates.find(t => t.id === id);
+      if (!item) return;
 
-      document.getElementById('tmplEditId').value = tmpl.id;
-      if (tmpl.payer === 'ゆうすけ') document.getElementById('tmplEditPayerYusuke').checked = true;
-      else document.getElementById('tmplEditPayerUrara').checked = true;
+      document.getElementById('tmplEditId').value = item.id;
+      
+      const payerInput = document.querySelector(`input[name="tmplEditPayer"][value="${item.payer}"]`);
+      if (payerInput) payerInput.checked = true;
 
-      document.getElementById('tmplEditCategory').value = tmpl.category;
-      document.getElementById('tmplEditAmount').value = tmpl.amount || '';
-      document.getElementById('tmplEditMemo').value = tmpl.title || '';
+      document.getElementById('tmplEditCategory').value = item.category || categories[0];
+      document.getElementById('tmplEditAmount').value = item.amount || '';
+      document.getElementById('tmplEditMemo').value = item.memo || '';
 
-      if (tmpl.splitType === 'CUSTOM') {
-        setRatioState('tmplEdit', true);
-        document.getElementById('tmplEditRatioYusuke').value = tmpl.ratioY || 1;
-        document.getElementById('tmplEditRatioUrara').value = tmpl.ratioU || 1;
+      const splitType = item.splitType || 'EQUAL';
+      if (splitType === 'CUSTOM') {
+        isTmplEditCustomRatio = true;
+        document.getElementById('tmplEditRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
+        document.getElementById('tmplEditRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
       } else {
-        setRatioState('tmplEdit', false);
-        document.getElementById('tmplEditSplitType').value = tmpl.splitType || 'EQUAL';
+        isTmplEditCustomRatio = false;
+        document.getElementById('tmplEditSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
       }
+
+      document.getElementById('tmplEditSimpleSplitArea').style.display = isTmplEditCustomRatio ? 'none' : 'block';
+      document.getElementById('tmplEditCustomSplitArea').style.display = isTmplEditCustomRatio ? 'block' : 'none';
+      document.getElementById('tmplEditToggleRatioBtn').textContent = isTmplEditCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
 
       document.getElementById('templateEditModal').classList.add('open');
     }
 
-    function closeTemplateEditModal() {
-      document.getElementById('templateEditModal').classList.remove('open');
-    }
-
-    function saveEditedTemplate() {
+    async function saveEditedTemplate() {
       const id = document.getElementById('tmplEditId').value;
       const payer = document.querySelector('input[name="tmplEditPayer"]:checked').value;
       const category = document.getElementById('tmplEditCategory').value;
-      const amountVal = document.getElementById('tmplEditAmount').value;
-      const amount = amountVal ? parseFloat(amountVal) : null;
-      const title = document.getElementById('tmplEditMemo').value.trim();
-      const splitData = getSplitDataFromUI('tmplEdit');
+      const amount = Number(document.getElementById('tmplEditAmount').value) || 0;
+      const memo = document.getElementById('tmplEditMemo').value;
+      const title = memo ? `${category}（${memo}）` : category;
 
-      db.collection('templates').doc(id).update({
-        payer,
-        category,
-        amount,
-        title,
-        splitType: splitData.splitType,
-        ratioY: splitData.ratioY,
-        ratioU: splitData.ratioU
-      }).then(() => {
-        closeTemplateEditModal();
-        renderTemplateManageList();
-      }).catch(err => alert("テンプレート更新エラー: " + err.message));
+      let splitType, ratioY = 1, ratioU = 1;
+      if (isTmplEditCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('tmplEditRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('tmplEditRatioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('tmplEditSplitType').value;
+      }
+
+      await db.collection('fixedCosts').doc(id).update({
+        payer, category, memo, amount, title, splitType, ratioY, ratioU
+      });
+
+      closeTemplateEditModal();
     }
 
-    // 初期化実行
-    window.onload = function() {
-      setDefaultDate();
-      initDataListeners();
-    };
+    async function deleteTemplate(id) {
+      if (confirm('このテンプレートを削除しますか？')) {
+        await db.collection('fixedCosts').doc(id).delete();
+      }
+    }
+
+    /* 清算関連 */
+    async function deleteSettledGroup(id, event) {
+      event.stopPropagation();
+      if (confirm('この精算履歴を削除しますか？（復元はできません）')) {
+        await db.collection('settledGroups').doc(id).delete();
+      }
+    }
+
+    function toggleAccordion(id) {
+      const details = document.getElementById(`details-${id}`);
+      const icon = document.getElementById(`icon-${id}`);
+      if (details) {
+        const isOpen = details.classList.contains('open');
+        if (isOpen) {
+          details.classList.remove('open');
+          icon.textContent = '▶';
+        } else {
+          details.classList.add('open');
+          icon.textContent = '▼';
+        }
+      }
+    }
+
+    async function settleUp() {
+      if (transactions.length === 0) return alert('未精算の記録がありません。');
+
+      if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
+        const settledDate = new Date().toLocaleString('ja-JP');
+        let balance = 0;
+
+        transactions.forEach((t) => {
+          let yRatio = 1, uRatio = 1;
+          if (t.splitType === 'CUSTOM') {
+            yRatio = t.ratioY !== undefined ? t.ratioY : 1;
+            uRatio = t.ratioU !== undefined ? t.ratioU : 1;
+          } else if (t.splitType === 'PAY_ALL') {
+            if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
+            else { yRatio = 1; uRatio = 0; }
+          } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
+            const parts = t.splitType.split('_');
+            yRatio = parseInt(parts[1], 10);
+            uRatio = parseInt(parts[2], 10);
+          }
+
+          const totalRatio = yRatio + uRatio;
+          if (totalRatio > 0) {
+            if (t.payer === 'ゆうすけ') {
+              balance += Math.round((t.amount * uRatio) / totalRatio);
+            } else if (t.payer === 'うらら') {
+              balance -= Math.round((t.amount * yRatio) / totalRatio);
+            }
+          }
+        });
+
+        let summaryText = "貸し借りなし（清算済み）";
+        if (balance > 0) {
+          summaryText = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円`;
+        } else if (balance < 0) {
+          summaryText = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円`;
+        }
+
+        const itemsToSave = [...transactions].sort((a, b) => a.createdAt - b.createdAt);
+        
+        await db.collection('settledGroups').add({
+          date: settledDate,
+          items: itemsToSave,
+          summaryText: summaryText,
+          createdAt: Date.now()
+        });
+
+        const batch = db.batch();
+        transactions.forEach(t => {
+          const ref = db.collection('transactions').doc(t.id);
+          batch.delete(ref);
+        });
+        await batch.commit();
+      }
+    }
+
+    function updateView() {
+      let balance = 0;
+      
+      transactions.forEach((t) => {
+        let yRatio = 1, uRatio = 1;
+
+        if (t.splitType === 'CUSTOM') {
+          yRatio = t.ratioY !== undefined ? t.ratioY : 1;
+          uRatio = t.ratioU !== undefined ? t.ratioU : 1;
+        } else if (t.splitType === 'PAY_ALL') {
+          if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
+          else { yRatio = 1; uRatio = 0; }
+        } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
+          const parts = t.splitType.split('_');
+          yRatio = parseInt(parts[1], 10);
+          uRatio = parseInt(parts[2], 10);
+        }
+
+        const totalRatio = yRatio + uRatio;
+        if (totalRatio > 0) {
+          if (t.payer === 'ゆうすけ') {
+            balance += Math.round((t.amount * uRatio) / totalRatio);
+          } else if (t.payer === 'うらら') {
+            balance -= Math.round((t.amount * yRatio) / totalRatio);
+          }
+        }
+      });
+
+      const sortKey = document.getElementById('sortKey').value;
+      const sortOrder = document.getElementById('sortOrder').value;
+      
+      let sortedTransactions = [...transactions];
+      sortedTransactions.sort((a, b) => {
+        let valA = a[sortKey];
+        let valB = b[sortKey];
+        
+        if (sortKey === 'date') {
+          valA = a.rawDate || a.date;
+          valB = b.rawDate || b.date;
+        }
+        
+        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
+        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
+        return 0;
+      });
+
+      const historyList = document.getElementById('historyList');
+      historyList.innerHTML = '';
+
+      if (sortedTransactions.length === 0) {
+        historyList.innerHTML = '<li style="justify-content: center; color: var(--text-sub);">未精算の記録はありません</li>';
+      }
+
+      sortedTransactions.forEach((t) => {
+        const li = document.createElement('li');
+        const typeText = getRatioDisplayText(t.splitType, t.ratioY, t.ratioU);
+        
+        li.innerHTML = `
+          <div class="item-info">
+            <div class="item-title">${t.title} - ${t.amount.toLocaleString()}円</div>
+            <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText})</div>
+          </div>
+          <div class="btn-action-group">
+            <button class="btn-edit" onclick="openEditModal('${t.id}')">編集</button>
+            <button class="btn-delete" onclick="deleteTransaction('${t.id}')">削除</button>
+          </div>
+        `;
+        historyList.appendChild(li);
+      });
+
+      const resultBox = document.getElementById('resultBox');
+      if (balance > 0) {
+        resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
+      } else if (balance < 0) {
+        resultBox.textContent = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円 支払う`;
+      } else {
+        resultBox.textContent = `貸し借りなし（清算済み）`;
+      }
+
+      const settledList = document.getElementById('settledHistoryList');
+      settledList.innerHTML = '';
+
+      if (settledGroups.length === 0) {
+        settledList.innerHTML = '<p style="text-align: center; color: var(--text-sub); font-size: 0.85em;">過去の精算履歴はありません</p>';
+      } else {
+        settledGroups.forEach((group) => {
+          const totalAmount = group.items.reduce((sum, item) => sum + item.amount, 0);
+          const div = document.createElement('div');
+          div.className = 'settlement-block';
+          
+          let itemsHtml = group.items.map(i => {
+            const typeText = getRatioDisplayText(i.splitType, i.ratioY, i.ratioU);
+            return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
+          }).join('<br>');
+
+          const summaryDisp = group.summaryText ? group.summaryText : '清算額データなし';
+
+          div.innerHTML = `
+            <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
+              <div class="settlement-title-info">
+                <span class="accordion-icon" id="icon-${group.id}">▶</span>
+                <div>
+                  <div>精算日時: ${group.date}</div>
+                  <div style="font-size: 0.9em; color: var(--primary-color); font-weight: bold; margin-top: 2px;">
+                    ${summaryDisp}
+                  </div>
+                  <div style="font-size: 0.8em; color: var(--text-sub); font-weight: normal; margin-top: 2px;">
+                    ${group.items.length}件 / 総利用額 ${totalAmount.toLocaleString()}円
+                  </div>
+                </div>
+              </div>
+              <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
+            </div>
+            <div class="settlement-details" id="details-${group.id}">
+              ${itemsHtml}
+            </div>
+          `;
+          settledList.appendChild(div);
+        });
+      }
+    }
+
+    setDefaultDate();
+    initRealtimeSync();
   </script>
 </body>
 </html>
