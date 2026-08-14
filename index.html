@@ -957,7 +957,7 @@
           `${payer}さんの魂の叫びが聞こえます。`,
           `異論は認めません！受け入れなさい！`
         ];
-        return `🤖${tags[i % tags.length]} (Pattern #${i+1}) ${msgs[(i * 3) % msgs.length]}`;
+        return `🤖${tags[i % tags.length]} ${msgs[(i * 3) % msgs.length]}`;
       });
 
       const p2 = Array.from({length: 500}, (_, i) => {
@@ -983,7 +983,7 @@
           `AIの気まぐれが選んだ『${resultText}』！`,
           `運命の歯車が噛み合い『${resultText}』へ！`
         ];
-        return `${templates[i % templates.length]} (検証コード: G2-${i+1})`;
+        return `${templates[i % templates.length]}`;
       });
 
       const p3 = Array.from({length: 500}, (_, i) => {
@@ -1009,7 +1009,7 @@
           `この衝撃を忘れずに、次のギャンブルに備えよ！`,
           `これにて割り勘裁判を終了します！判決に従うべし！`
         ];
-        return `${msgs[i % msgs.length]} (ステータス: OK-${i+1})`;
+        return `${msgs[i % msgs.length]}`;
       });
 
       const r1 = p1[Math.floor(Math.random() * p1.length)];
@@ -1044,7 +1044,7 @@
           `過去の貸し借りは綺麗な水に流し、新しい未来へ踏み出しましょう！`,
           `二人の信頼関係という資産がより強固になったことを確認！`
         ];
-        return `🤖${headers[i % headers.length]} (ID: S1-${i+1})\n${bodies[(i * 2) % bodies.length]}`;
+        return `🤖${headers[i % headers.length]}\n${bodies[(i * 2) % bodies.length]}`;
       });
 
       const p2 = Array.from({length: 500}, (_, i) => {
@@ -1070,7 +1070,7 @@
           `全件集計完了：${count}件（計 ${totalAmount.toLocaleString()}円）\n【精算コマンド】👉 ${summaryText}`,
           `今回のデータ：${count}件（総額 ${totalAmount.toLocaleString()}円）\n【精算結果】👉 ${summaryText}`
         ];
-        return `${templates[i % templates.length]} (Rec: #${i+1})`;
+        return `${templates[i % templates.length]}`;
       });
 
       const p3 = Array.from({length: 500}, (_, i) => {
@@ -1096,7 +1096,7 @@
           `またいつでも精算しに来てくださいね。AIはここで待っています！`,
           `ちゃんとお金の受け渡しが完了するまでが「精算」ですよ〜！`
         ];
-        return `${msgs[i % msgs.length]} [Phase-${i+1}]`;
+        return `${msgs[i % msgs.length]}`;
       });
 
       const r1 = p1[Math.floor(Math.random() * p1.length)];
