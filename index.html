@@ -94,18 +94,13 @@
       <input type="text" id="title" placeholder="例: スーパーでの買い物">
 
       <label>割り方</label>
-      <select id="splitType">
-        <option value="EQUAL">折半（5:5）</option>
-        <option value="RATIO_9_1">ゆうすけ9：うらら1</option>
-        <option value="RATIO_8_2">ゆうすけ8：うらら2</option>
-        <option value="RATIO_7_3">ゆうすけ7：うらら3</option>
-        <option value="RATIO_6_4">ゆうすけ6：うらら4</option>
-        <option value="RATIO_4_6">ゆうすけ4：うらら6</option>
-        <option value="RATIO_3_7">ゆうすけ3：うらら7</option>
-        <option value="RATIO_2_8">ゆうすけ2：うらら8</option>
-        <option value="RATIO_1_9">ゆうすけ1：うらら9</option>
-        <option value="PAY_ALL">全額立替（相手が100%負担）</option>
+      <select id="splitType" data-detailed="false">
+        <option value="EQUAL">折半</option>
+        <option value="PAY_ALL">全額立替</option>
       </select>
+      <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
+        <button type="button" class="btn-link" id="toggleRatioBtn" onclick="toggleRatio('')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
+      </div>
 
       <button class="btn-submit" onclick="addTransaction()">記録を追加する</button>
     </div>
@@ -179,18 +174,13 @@
         <input type="text" id="editMemo" placeholder="例: スーパーでの買い物">
 
         <label>割り方</label>
-        <select id="editSplitType">
-          <option value="EQUAL">折半（5:5）</option>
-          <option value="RATIO_9_1">ゆうすけ9：うらら1</option>
-          <option value="RATIO_8_2">ゆうすけ8：うらら2</option>
-          <option value="RATIO_7_3">ゆうすけ7：うらら3</option>
-          <option value="RATIO_6_4">ゆうすけ6：うらら4</option>
-          <option value="RATIO_4_6">ゆうすけ4：うらら6</option>
-          <option value="RATIO_3_7">ゆうすけ3：うらら7</option>
-          <option value="RATIO_2_8">ゆうすけ2：うらら8</option>
-          <option value="RATIO_1_9">ゆうすけ1：うらら9</option>
-          <option value="PAY_ALL">全額立替（相手が100%負担）</option>
+        <select id="editSplitType" data-detailed="false">
+          <option value="EQUAL">折半</option>
+          <option value="PAY_ALL">全額立替</option>
         </select>
+        <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
+          <button type="button" class="btn-link" id="editToggleRatioBtn" onclick="toggleRatio('edit')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
+        </div>
 
         <button class="btn-submit" onclick="saveEditedTransaction()" style="margin-top: 10px;">変更を保存する</button>
       </div>
@@ -236,6 +226,49 @@
       const mm = String(today.getMonth() + 1).padStart(2, '0');
       const dd = String(today.getDate()).padStart(2, '0');
       document.getElementById('dateInput').value = `${yyyy}-${mm}-${dd}`;
+    }
+
+    function toggleRatio(prefix) {
+      const selectId = prefix === 'edit' ? 'editSplitType' : 'splitType';
+      const btnId = prefix === 'edit' ? 'editToggleRatioBtn' : 'toggleRatioBtn';
+      const select = document.getElementById(selectId);
+      const btn = document.getElementById(btnId);
+      
+      const isDetailed = select.getAttribute('data-detailed') === 'true';
+      const currentVal = select.value;
+
+      if (isDetailed) {
+        // シンプルな選択肢に戻す
+        select.innerHTML = `
+          <option value="EQUAL">折半</option>
+          <option value="PAY_ALL">全額立替</option>
+        `;
+        // 詳細な割合が選ばれていた場合は「折半」に戻す
+        if (!['EQUAL', 'PAY_ALL'].includes(currentVal)) {
+          select.value = 'EQUAL';
+        } else {
+          select.value = currentVal;
+        }
+        select.setAttribute('data-detailed', 'false');
+        btn.textContent = '＋ 割合を細かく設定';
+      } else {
+        // 詳細な選択肢を表示する
+        select.innerHTML = `
+          <option value="EQUAL">折半</option>
+          <option value="RATIO_9_1">ゆうすけ9：うらら1</option>
+          <option value="RATIO_8_2">ゆうすけ8：うらら2</option>
+          <option value="RATIO_7_3">ゆうすけ7：うらら3</option>
+          <option value="RATIO_6_4">ゆうすけ6：うらら4</option>
+          <option value="RATIO_4_6">ゆうすけ4：うらら6</option>
+          <option value="RATIO_3_7">ゆうすけ3：うらら7</option>
+          <option value="RATIO_2_8">ゆうすけ2：うらら8</option>
+          <option value="RATIO_1_9">ゆうすけ1：うらら9</option>
+          <option value="PAY_ALL">全額立替</option>
+        `;
+        select.value = currentVal;
+        select.setAttribute('data-detailed', 'true');
+        btn.textContent = 'ー シンプルに戻す';
+      }
     }
 
     function initRealtimeSync() {
@@ -369,6 +402,13 @@
 
       document.getElementById('amount').value = '';
       document.getElementById('title').value = '';
+      
+      // 追加後は割り方をシンプルな状態に戻す
+      const mainSelect = document.getElementById('splitType');
+      if (mainSelect.getAttribute('data-detailed') === 'true') {
+        toggleRatio('');
+      }
+      mainSelect.value = 'EQUAL';
     }
 
     function openEditModal(id) {
@@ -381,7 +421,19 @@
       document.getElementById('editCategory').value = item.category || categories[0];
       document.getElementById('editAmount').value = item.amount;
       document.getElementById('editMemo').value = item.memo || '';
-      document.getElementById('editSplitType').value = item.splitType || 'EQUAL';
+      
+      const splitType = item.splitType || 'EQUAL';
+      const isDetailed = !['EQUAL', 'PAY_ALL'].includes(splitType);
+      const editSelect = document.getElementById('editSplitType');
+      
+      // 保存されている割合が詳細設定の場合は、自動で詳細メニューを展開する
+      if (isDetailed && editSelect.getAttribute('data-detailed') !== 'true') {
+        toggleRatio('edit');
+      } else if (!isDetailed && editSelect.getAttribute('data-detailed') === 'true') {
+        toggleRatio('edit');
+      }
+      
+      editSelect.value = splitType;
 
       document.getElementById('editModal').classList.add('open');
     }
@@ -488,7 +540,6 @@
             else { yusukeRatio = 10; uraraRatio = 0; }
             break;
           default:
-            // 過去データ（EQUALがない等）への保険
             yusukeRatio = 5; uraraRatio = 5;
         }
 
