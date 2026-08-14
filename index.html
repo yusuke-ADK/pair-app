@@ -21,6 +21,7 @@
     input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
     .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
     .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
+    .btn-fixed-cost { width: 100%; padding: 10px; background: #6f42c1; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-bottom: 10px; }
     .btn-action-group { display: flex; gap: 4px; }
     .btn-edit { background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
     .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
@@ -84,6 +85,10 @@
     .category-add-box input { margin-bottom: 0; flex-grow: 1; }
     .category-add-box button { padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; }
     .category-list li { padding: 8px 0; }
+
+    /* 固定費モーダル用スタイル */
+    .fixed-item-check { margin-right: 10px; transform: scale(1.2); }
+    .fixed-cost-list li { border-bottom: 1px solid #eee; padding: 10px 0; }
   </style>
 </head>
 <body>
@@ -98,6 +103,9 @@
 
   <!-- 入力フォーム -->
   <div class="card">
+    <!-- 固定費一括登録ボタン -->
+    <button class="btn-fixed-cost" onclick="openFixedCostModal()">⚡ 固定費をまとめて一括作成</button>
+
     <div class="form-group">
       <label>発生日</label>
       <input type="date" id="dateInput">
@@ -248,6 +256,79 @@
     </div>
   </div>
 
+  <!-- 固定費一括作成モーダル -->
+  <div class="modal-overlay" id="fixedCostModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>固定費を一括作成</h3>
+        <button class="btn-close" onclick="closeFixedCostModal()">✕</button>
+      </div>
+      <div style="text-align: right; margin-bottom: 10px;">
+        <button type="button" class="btn-link" onclick="openFixedCostManageModal()">⚙️ 固定費テンプレート管理</button>
+      </div>
+      <ul class="fixed-cost-list" id="fixedCostSelectList"></ul>
+      <button class="btn-submit" onclick="submitFixedCosts()" style="margin-top: 15px;">選択した固定費を追加する</button>
+    </div>
+  </div>
+
+  <!-- 固定費テンプレート管理モーダル -->
+  <div class="modal-overlay" id="fixedCostManageModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>固定費テンプレート管理</h3>
+        <button class="btn-close" onclick="closeFixedCostManageModal()">✕</button>
+      </div>
+      <div class="form-group" style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+        <label style="color: #333; font-weight: bold;">新規固定費の追加</label>
+        
+        <label>誰が払う？</label>
+        <div class="radio-group">
+          <input type="radio" id="fixPayerYusuke" name="fixPayer" value="ゆうすけ" checked>
+          <label for="fixPayerYusuke">ゆうすけ</label>
+          <input type="radio" id="fixPayerUrara" name="fixPayer" value="うらら">
+          <label for="fixPayerUrara">うらら</label>
+        </div>
+
+        <label>項目（カテゴリー）</label>
+        <select id="fixCategory"></select>
+
+        <label>金額（円）</label>
+        <input type="number" id="fixAmount" placeholder="例: 80000">
+
+        <label>詳細・メモ（任意）</label>
+        <input type="text" id="fixMemo" placeholder="例: 毎月の家賃">
+
+        <div id="fixSimpleSplitArea">
+          <label>割り方</label>
+          <select id="fixSplitType">
+            <option value="EQUAL">折半</option>
+            <option value="PAY_ALL">全額立替</option>
+          </select>
+        </div>
+
+        <div id="fixCustomSplitArea" style="display: none;">
+          <label>割り方</label>
+          <div class="custom-ratio-inputs">
+            <span>ゆうすけ</span>
+            <input type="number" id="fixRatioYusuke" value="1" min="0">
+            <span>：</span>
+            <span>うらら</span>
+            <input type="number" id="fixRatioUrara" value="1" min="0">
+          </div>
+        </div>
+
+        <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
+          <button type="button" class="btn-link" id="fixToggleRatioBtn" onclick="toggleRatio('fix')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
+        </div>
+
+        <button class="btn-submit" onclick="addFixedCostTemplate()" style="background: #007bff; margin-top: 5px;">テンプレートを保存</button>
+      </div>
+
+      <label style="font-weight: bold; color: #333;">登録済みテンプレート</label>
+      <ul id="fixedCostManageList" style="margin-top: 5px;"></ul>
+    </div>
+  </div>
+
   <script>
     const firebaseConfig = {
       apiKey: "AIzaSyB9PUPbJLyY3JM_Hv7Nrr9f62iJW8edulU",
@@ -266,10 +347,12 @@
     let transactions = [];
     let settledGroups = [];
     let categories = defaultCategories;
+    let fixedCosts = [];
     
     // 割合切り替えのステータス管理
     let isCustomRatio = false;
     let isEditCustomRatio = false;
+    let isFixCustomRatio = false;
 
     function setDefaultDate() {
       const today = new Date();
@@ -280,18 +363,18 @@
     }
 
     function toggleRatio(prefix) {
-      const isEdit = prefix === 'edit';
-      
-      if (isEdit) {
+      if (prefix === 'edit') {
         isEditCustomRatio = !isEditCustomRatio;
+      } else if (prefix === 'fix') {
+        isFixCustomRatio = !isFixCustomRatio;
       } else {
         isCustomRatio = !isCustomRatio;
       }
       
-      const currentMode = isEdit ? isEditCustomRatio : isCustomRatio;
-      const simpleArea = document.getElementById(isEdit ? 'editSimpleSplitArea' : 'simpleSplitArea');
-      const customArea = document.getElementById(isEdit ? 'editCustomSplitArea' : 'customSplitArea');
-      const btn = document.getElementById(isEdit ? 'editToggleRatioBtn' : 'toggleRatioBtn');
+      const currentMode = prefix === 'edit' ? isEditCustomRatio : (prefix === 'fix' ? isFixCustomRatio : isCustomRatio);
+      const simpleArea = document.getElementById(prefix ? `${prefix}SimpleSplitArea` : 'simpleSplitArea');
+      const customArea = document.getElementById(prefix ? `${prefix}CustomSplitArea` : 'customSplitArea');
+      const btn = document.getElementById(prefix ? `${prefix}ToggleRatioBtn` : 'toggleRatioBtn');
 
       if (currentMode) {
         simpleArea.style.display = 'none';
@@ -312,7 +395,6 @@
       } else if (splitType === 'EQUAL') {
         return '折半';
       } else if (splitType && splitType.startsWith('RATIO_')) {
-        // 過去のプルダウン仕様データの互換対応
         const parts = splitType.split('_');
         return `ゆ${parts[1]}：う${parts[2]}`;
       }
@@ -345,43 +427,55 @@
           renderCategoryModalList();
         }
       });
+
+      db.collection('fixedCosts').onSnapshot(snapshot => {
+        fixedCosts = [];
+        snapshot.forEach(doc => fixedCosts.push({ id: doc.id, ...doc.data() }));
+        renderFixedCostSelectList();
+        renderFixedCostManageList();
+      });
     }
 
     function updateCategorySelect() {
       const categorySelect = document.getElementById('category');
       const editCategorySelect = document.getElementById('editCategory');
+      const fixCategorySelect = document.getElementById('fixCategory');
       
       const currentVal = categorySelect.value;
       const currentEditVal = editCategorySelect.value;
+      const currentFixVal = fixCategorySelect.value;
       
       categorySelect.innerHTML = '';
       editCategorySelect.innerHTML = '';
+      fixCategorySelect.innerHTML = '';
 
       categories.forEach(cat => {
         const option = document.createElement('option');
-        option.value = cat;
-        option.textContent = cat;
+        option.value = cat; option.textContent = cat;
         categorySelect.appendChild(option);
 
         const editOption = document.createElement('option');
-        editOption.value = cat;
-        editOption.textContent = cat;
+        editOption.value = cat; editOption.textContent = cat;
         editCategorySelect.appendChild(editOption);
+
+        const fixOption = document.createElement('option');
+        fixOption.value = cat; fixOption.textContent = cat;
+        fixCategorySelect.appendChild(fixOption);
       });
       
       if (categories.includes(currentVal)) categorySelect.value = currentVal;
       if (categories.includes(currentEditVal)) editCategorySelect.value = currentEditVal;
+      if (categories.includes(currentFixVal)) fixCategorySelect.value = currentFixVal;
     }
 
+    /* カテゴリーモーダル */
     function openCategoryModal() {
       renderCategoryModalList();
       document.getElementById('categoryModal').classList.add('open');
     }
-
     function closeCategoryModal() {
       document.getElementById('categoryModal').classList.remove('open');
     }
-
     function renderCategoryModalList() {
       const modalList = document.getElementById('modalCategoryList');
       modalList.innerHTML = '';
@@ -398,19 +492,15 @@
         modalList.appendChild(li);
       });
     }
-
     async function moveCategory(index, direction) {
       const newIndex = index + direction;
       if (newIndex < 0 || newIndex >= categories.length) return;
-      
       const newCategories = [...categories];
       const temp = newCategories[index];
       newCategories[index] = newCategories[newIndex];
       newCategories[newIndex] = temp;
-      
       await db.collection('settings').doc('categories').set({ list: newCategories });
     }
-
     async function addCategory() {
       const input = document.getElementById('newCategoryInput');
       const name = input.value.trim();
@@ -420,7 +510,6 @@
       await db.collection('settings').doc('categories').set({ list: newCategories });
       input.value = '';
     }
-
     async function deleteCategory(index) {
       if (categories.length <= 1) return alert('項目は最低1つ残す必要があります');
       if (confirm(`「${categories[index]}」を削除しますか？`)) {
@@ -429,6 +518,7 @@
       }
     }
 
+    /* 通常の個別記録の追加 */
     async function addTransaction() {
       const dateVal = document.getElementById('dateInput').value;
       const payer = document.querySelector('input[name="payer"]:checked').value;
@@ -458,7 +548,6 @@
         date: formattedDate, rawDate: dateVal, createdAt: Date.now()
       });
 
-      // 入力フォームをリセット
       document.getElementById('amount').value = '';
       document.getElementById('title').value = '';
       
@@ -471,11 +560,10 @@
       document.getElementById('splitType').value = 'EQUAL';
       document.getElementById('ratioYusuke').value = '1';
       document.getElementById('ratioUrara').value = '1';
-      
-      // ラジオボタンをゆうすけに戻す
       document.getElementById('payerYusuke').checked = true;
     }
 
+    /* 編集モーダル */
     function openEditModal(id) {
       const item = transactions.find(t => t.id === id);
       if (!item) return;
@@ -483,7 +571,6 @@
       document.getElementById('editId').value = item.id;
       document.getElementById('editDateInput').value = item.rawDate || item.date.replace(/\//g, '-');
       
-      // ラジオボタンの選択状態を反映
       const payerInput = document.querySelector(`input[name="editPayer"][value="${item.payer}"]`);
       if (payerInput) payerInput.checked = true;
 
@@ -493,7 +580,6 @@
       
       const splitType = item.splitType || 'EQUAL';
       
-      // カスタム割合かどうかでUIを切り替え
       if (splitType === 'CUSTOM') {
         isEditCustomRatio = true;
         document.getElementById('editRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
@@ -553,6 +639,141 @@
       }
     }
 
+    /* --- 固定費一括登録関連 --- */
+    function openFixedCostModal() {
+      renderFixedCostSelectList();
+      document.getElementById('fixedCostModal').classList.add('open');
+    }
+    function closeFixedCostModal() {
+      document.getElementById('fixedCostModal').classList.remove('open');
+    }
+    function openFixedCostManageModal() {
+      renderFixedCostManageList();
+      document.getElementById('fixedCostManageModal').classList.add('open');
+    }
+    function closeFixedCostManageModal() {
+      document.getElementById('fixedCostManageModal').classList.remove('open');
+    }
+
+    function renderFixedCostSelectList() {
+      const list = document.getElementById('fixedCostSelectList');
+      list.innerHTML = '';
+      if (fixedCosts.length === 0) {
+        list.innerHTML = '<li style="color: #888; text-align: center;">登録済みの固定費がありません。<br>「⚙️ 固定費テンプレート管理」から登録してください。</li>';
+        return;
+      }
+      fixedCosts.forEach(item => {
+        const li = document.createElement('li');
+        const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
+        li.innerHTML = `
+          <label style="display: flex; align-items: center; width: 100%; cursor: pointer;">
+            <input type="checkbox" class="fixed-item-check" value="${item.id}" checked>
+            <div class="item-info">
+              <div class="item-title">${item.title} - ${item.amount.toLocaleString()}円</div>
+              <div class="item-sub">${item.payer}が支払い (${typeText})</div>
+            </div>
+          </label>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    function renderFixedCostManageList() {
+      const list = document.getElementById('fixedCostManageList');
+      list.innerHTML = '';
+      if (fixedCosts.length === 0) {
+        list.innerHTML = '<li style="color: #888; text-align: center;">固定費テンプレートはありません</li>';
+        return;
+      }
+      fixedCosts.forEach(item => {
+        const li = document.createElement('li');
+        const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
+        li.innerHTML = `
+          <div class="item-info">
+            <div class="item-title">${item.title} - ${item.amount.toLocaleString()}円</div>
+            <div class="item-sub">${item.payer}が支払い (${typeText})</div>
+          </div>
+          <button class="btn-delete" onclick="deleteFixedCostTemplate('${item.id}')">削除</button>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    async function addFixedCostTemplate() {
+      const payer = document.querySelector('input[name="fixPayer"]:checked').value;
+      const category = document.getElementById('fixCategory').value;
+      const amount = Number(document.getElementById('fixAmount').value);
+      const memo = document.getElementById('fixMemo').value;
+      const title = memo ? `${category}（${memo}）` : category;
+      
+      let splitType, ratioY = 1, ratioU = 1;
+      
+      if (isFixCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('fixRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('fixRatioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('fixSplitType').value;
+      }
+
+      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
+
+      await db.collection('fixedCosts').add({
+        payer, category, memo, amount, title, splitType, ratioY, ratioU, createdAt: Date.now()
+      });
+
+      document.getElementById('fixAmount').value = '';
+      document.getElementById('fixMemo').value = '';
+    }
+
+    async function deleteFixedCostTemplate(id) {
+      if (confirm('この固定費テンプレートを削除しますか？')) {
+        await db.collection('fixedCosts').doc(id).delete();
+      }
+    }
+
+    async function submitFixedCosts() {
+      const checkboxes = document.querySelectorAll('.fixed-item-check:checked');
+      if (checkboxes.length === 0) return alert('追加する固定費を選択してください。');
+
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      const rawDate = `${yyyy}-${mm}-${dd}`;
+      const formattedDate = `${yyyy}/${mm}/${dd}`;
+
+      const batch = db.batch();
+      let count = 0;
+
+      checkboxes.forEach(cb => {
+        const item = fixedCosts.find(f => f.id === cb.value);
+        if (item) {
+          const docRef = db.collection('transactions').doc();
+          batch.set(docRef, {
+            payer: item.payer,
+            category: item.category,
+            memo: item.memo || '',
+            amount: item.amount,
+            title: item.title,
+            splitType: item.splitType,
+            ratioY: item.ratioY,
+            ratioU: item.ratioU,
+            date: formattedDate,
+            rawDate: rawDate,
+            createdAt: Date.now() + count // 並び順が重ならないよう僅かにずらす
+          });
+          count++;
+        }
+      });
+
+      await batch.commit();
+      closeFixedCostModal();
+      alert(`${count}件の固定費を今月の記録として一括追加しました！`);
+    }
+
+    /* 清算関連 */
     async function deleteSettledGroup(id, event) {
       event.stopPropagation();
       if (confirm('この精算履歴を削除しますか？（復元はできません）')) {
@@ -580,9 +801,8 @@
 
       if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
         const settledDate = new Date().toLocaleString('ja-JP');
-        
-        // 精算時点での最終精算額を計算
         let balance = 0;
+
         transactions.forEach((t) => {
           let yRatio = 1, uRatio = 1;
           if (t.splitType === 'CUSTOM') {
@@ -635,7 +855,6 @@
     function updateView() {
       let balance = 0;
       
-      // 合計金額の計算（負担割合の反映）
       transactions.forEach((t) => {
         let yRatio = 1, uRatio = 1;
 
@@ -661,7 +880,6 @@
         }
       });
 
-      // 並べ替え処理
       const sortKey = document.getElementById('sortKey').value;
       const sortOrder = document.getElementById('sortOrder').value;
       
@@ -680,7 +898,6 @@
         return 0;
       });
 
-      // 未精算リストの描画
       const historyList = document.getElementById('historyList');
       historyList.innerHTML = '';
 
@@ -705,7 +922,6 @@
         historyList.appendChild(li);
       });
 
-      // 清算結果の描画
       const resultBox = document.getElementById('resultBox');
       if (balance > 0) {
         resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
@@ -715,7 +931,6 @@
         resultBox.textContent = `貸し借りなし（清算済み）`;
       }
 
-      // 精算済みリストの描画
       const settledList = document.getElementById('settledHistoryList');
       settledList.innerHTML = '';
 
@@ -732,7 +947,6 @@
             return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
           }).join('<br>');
 
-          // 過去データ（summaryTextがない場合）への互換表示
           const summaryDisp = group.summaryText ? group.summaryText : '清算額データなし';
 
           div.innerHTML = `
