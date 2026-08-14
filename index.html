@@ -21,12 +21,13 @@
     input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
     .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
     .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
-    .btn-fixed-cost { width: 100%; padding: 10px; background: #6f42c1; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-bottom: 10px; }
+    .btn-template { width: 100%; padding: 10px; background: #6f42c1; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-bottom: 10px; }
     .btn-action-group { display: flex; gap: 4px; }
     .btn-edit { background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
     .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
     .btn-move { background: #e9ecef; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
     .btn-move:disabled { opacity: 0.4; cursor: not-allowed; }
+    .btn-select-tmpl { background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 0.8em; cursor: pointer; }
     ul { list-style: none; padding: 0; margin: 0; }
     li { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
     .item-info { flex-grow: 1; padding-right: 8px; }
@@ -85,10 +86,6 @@
     .category-add-box input { margin-bottom: 0; flex-grow: 1; }
     .category-add-box button { padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; }
     .category-list li { padding: 8px 0; }
-
-    /* 固定費モーダル用スタイル */
-    .fixed-item-check { margin-right: 10px; transform: scale(1.2); }
-    .fixed-cost-list li { border-bottom: 1px solid #eee; padding: 10px 0; }
   </style>
 </head>
 <body>
@@ -103,8 +100,8 @@
 
   <!-- 入力フォーム -->
   <div class="card">
-    <!-- 固定費一括登録ボタン -->
-    <button class="btn-fixed-cost" onclick="openFixedCostModal()">⚡ 固定費をまとめて一括作成</button>
+    <!-- テンプレート選択ボタン -->
+    <button class="btn-template" onclick="openTemplateListModal()">📋 テンプレートから入力</button>
 
     <div class="form-group">
       <label>発生日</label>
@@ -256,76 +253,132 @@
     </div>
   </div>
 
-  <!-- 固定費一括作成モーダル -->
-  <div class="modal-overlay" id="fixedCostModal">
+  <!-- 1. テンプレート選択モーダル -->
+  <div class="modal-overlay" id="templateListModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>固定費を一括作成</h3>
-        <button class="btn-close" onclick="closeFixedCostModal()">✕</button>
+        <h3>テンプレートを選択</h3>
+        <button class="btn-close" onclick="closeTemplateListModal()">✕</button>
       </div>
       <div style="text-align: right; margin-bottom: 10px;">
-        <button type="button" class="btn-link" onclick="openFixedCostManageModal()">⚙️ 固定費テンプレート管理</button>
+        <button type="button" class="btn-link" onclick="openTemplateManageModal()">⚙️ テンプレートの設定・管理</button>
       </div>
-      <ul class="fixed-cost-list" id="fixedCostSelectList"></ul>
-      <button class="btn-submit" onclick="submitFixedCosts()" style="margin-top: 15px;">選択した固定費を追加する</button>
+      <ul id="templateSelectList"></ul>
     </div>
   </div>
 
-  <!-- 固定費テンプレート管理モーダル -->
-  <div class="modal-overlay" id="fixedCostManageModal">
+  <!-- 2. テンプレートからの確認・編集モーダル -->
+  <div class="modal-overlay" id="templateUseModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>固定費テンプレート管理</h3>
-        <button class="btn-close" onclick="closeFixedCostManageModal()">✕</button>
+        <h3>内容を確認して登録</h3>
+        <button class="btn-close" onclick="closeTemplateUseModal()">✕</button>
       </div>
-      <div class="form-group" style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
-        <label style="color: #333; font-weight: bold;">新規固定費の追加</label>
-        
-        <label>誰が払う？</label>
+      <div class="form-group">
+        <label>発生日</label>
+        <input type="date" id="tmplUseDateInput">
+
+        <label>誰が払った？</label>
         <div class="radio-group">
-          <input type="radio" id="fixPayerYusuke" name="fixPayer" value="ゆうすけ" checked>
-          <label for="fixPayerYusuke">ゆうすけ</label>
-          <input type="radio" id="fixPayerUrara" name="fixPayer" value="うらら">
-          <label for="fixPayerUrara">うらら</label>
+          <input type="radio" id="tmplUsePayerYusuke" name="tmplUsePayer" value="ゆうすけ">
+          <label for="tmplUsePayerYusuke">ゆうすけ</label>
+          
+          <input type="radio" id="tmplUsePayerUrara" name="tmplUsePayer" value="うらら">
+          <label for="tmplUsePayerUrara">うらら</label>
         </div>
 
         <label>項目（カテゴリー）</label>
-        <select id="fixCategory"></select>
+        <select id="tmplUseCategory"></select>
 
         <label>金額（円）</label>
-        <input type="number" id="fixAmount" placeholder="例: 80000">
+        <input type="number" id="tmplUseAmount">
 
         <label>詳細・メモ（任意）</label>
-        <input type="text" id="fixMemo" placeholder="例: 毎月の家賃">
+        <input type="text" id="tmplUseMemo" placeholder="例: 今月分の電気代">
 
-        <div id="fixSimpleSplitArea">
+        <div id="tmplUseSimpleSplitArea">
           <label>割り方</label>
-          <select id="fixSplitType">
+          <select id="tmplUseSplitType">
             <option value="EQUAL">折半</option>
             <option value="PAY_ALL">全額立替</option>
           </select>
         </div>
 
-        <div id="fixCustomSplitArea" style="display: none;">
+        <div id="tmplUseCustomSplitArea" style="display: none;">
           <label>割り方</label>
           <div class="custom-ratio-inputs">
             <span>ゆうすけ</span>
-            <input type="number" id="fixRatioYusuke" value="1" min="0">
+            <input type="number" id="tmplUseRatioYusuke" value="1" min="0">
             <span>：</span>
             <span>うらら</span>
-            <input type="number" id="fixRatioUrara" value="1" min="0">
+            <input type="number" id="tmplUseRatioUrara" value="1" min="0">
           </div>
         </div>
 
         <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
-          <button type="button" class="btn-link" id="fixToggleRatioBtn" onclick="toggleRatio('fix')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
+          <button type="button" class="btn-link" id="tmplUseToggleRatioBtn" onclick="toggleRatio('tmplUse')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
         </div>
 
-        <button class="btn-submit" onclick="addFixedCostTemplate()" style="background: #007bff; margin-top: 5px;">テンプレートを保存</button>
+        <button class="btn-submit" onclick="submitTemplateTransaction()" style="margin-top: 10px;">この内容で記録を追加する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. テンプレート設定・管理モーダル -->
+  <div class="modal-overlay" id="templateManageModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>テンプレート管理</h3>
+        <button class="btn-close" onclick="closeTemplateManageModal()">✕</button>
+      </div>
+      <div class="form-group" style="background: #f8f9fa; padding: 10px; border-radius: 8px; margin-bottom: 15px;">
+        <label style="color: #333; font-weight: bold;">新規テンプレート登録</label>
+        
+        <label>誰が払う？</label>
+        <div class="radio-group">
+          <input type="radio" id="tmplPayerYusuke" name="tmplPayer" value="ゆうすけ" checked>
+          <label for="tmplPayerYusuke">ゆうすけ</label>
+          <input type="radio" id="tmplPayerUrara" name="tmplPayer" value="うらら">
+          <label for="tmplPayerUrara">うらら</label>
+        </div>
+
+        <label>項目（カテゴリー）</label>
+        <select id="tmplCategory"></select>
+
+        <label>目安の金額（円）</label>
+        <input type="number" id="tmplAmount" placeholder="例: 80000（毎回変わる場合は空欄でも可）">
+
+        <label>詳細・メモ（任意）</label>
+        <input type="text" id="tmplMemo" placeholder="例: 電気代・ガス代">
+
+        <div id="tmplSimpleSplitArea">
+          <label>割り方</label>
+          <select id="tmplSplitType">
+            <option value="EQUAL">折半</option>
+            <option value="PAY_ALL">全額立替</option>
+          </select>
+        </div>
+
+        <div id="tmplCustomSplitArea" style="display: none;">
+          <label>割り方</label>
+          <div class="custom-ratio-inputs">
+            <span>ゆうすけ</span>
+            <input type="number" id="tmplRatioYusuke" value="1" min="0">
+            <span>：</span>
+            <span>うらら</span>
+            <input type="number" id="tmplRatioUrara" value="1" min="0">
+          </div>
+        </div>
+
+        <div style="text-align: right; margin-top: -4px; margin-bottom: 8px;">
+          <button type="button" class="btn-link" id="tmplToggleRatioBtn" onclick="toggleRatio('tmpl')" style="font-size: 0.75em; color: #6c757d; text-decoration: none;">＋ 割合を細かく設定</button>
+        </div>
+
+        <button class="btn-submit" onclick="addTemplate()" style="background: #007bff; margin-top: 5px;">テンプレートとして保存</button>
       </div>
 
       <label style="font-weight: bold; color: #333;">登録済みテンプレート</label>
-      <ul id="fixedCostManageList" style="margin-top: 5px;"></ul>
+      <ul id="templateManageList" style="margin-top: 5px;"></ul>
     </div>
   </div>
 
@@ -347,12 +400,13 @@
     let transactions = [];
     let settledGroups = [];
     let categories = defaultCategories;
-    let fixedCosts = [];
+    let templates = [];
     
     // 割合切り替えのステータス管理
     let isCustomRatio = false;
     let isEditCustomRatio = false;
-    let isFixCustomRatio = false;
+    let isTmplCustomRatio = false;
+    let isTmplUseCustomRatio = false;
 
     function setDefaultDate() {
       const today = new Date();
@@ -365,13 +419,15 @@
     function toggleRatio(prefix) {
       if (prefix === 'edit') {
         isEditCustomRatio = !isEditCustomRatio;
-      } else if (prefix === 'fix') {
-        isFixCustomRatio = !isFixCustomRatio;
+      } else if (prefix === 'tmpl') {
+        isTmplCustomRatio = !isTmplCustomRatio;
+      } else if (prefix === 'tmplUse') {
+        isTmplUseCustomRatio = !isTmplUseCustomRatio;
       } else {
         isCustomRatio = !isCustomRatio;
       }
       
-      const currentMode = prefix === 'edit' ? isEditCustomRatio : (prefix === 'fix' ? isFixCustomRatio : isCustomRatio);
+      const currentMode = prefix === 'edit' ? isEditCustomRatio : (prefix === 'tmpl' ? isTmplCustomRatio : (prefix === 'tmplUse' ? isTmplUseCustomRatio : isCustomRatio));
       const simpleArea = document.getElementById(prefix ? `${prefix}SimpleSplitArea` : 'simpleSplitArea');
       const customArea = document.getElementById(prefix ? `${prefix}CustomSplitArea` : 'customSplitArea');
       const btn = document.getElementById(prefix ? `${prefix}ToggleRatioBtn` : 'toggleRatioBtn');
@@ -428,44 +484,29 @@
         }
       });
 
+      // テンプレート情報の同期（過去のfixedCostsコレクションと統合）
       db.collection('fixedCosts').onSnapshot(snapshot => {
-        fixedCosts = [];
-        snapshot.forEach(doc => fixedCosts.push({ id: doc.id, ...doc.data() }));
-        renderFixedCostSelectList();
-        renderFixedCostManageList();
+        templates = [];
+        snapshot.forEach(doc => templates.push({ id: doc.id, ...doc.data() }));
+        renderTemplateSelectList();
+        renderTemplateManageList();
       });
     }
 
     function updateCategorySelect() {
-      const categorySelect = document.getElementById('category');
-      const editCategorySelect = document.getElementById('editCategory');
-      const fixCategorySelect = document.getElementById('fixCategory');
-      
-      const currentVal = categorySelect.value;
-      const currentEditVal = editCategorySelect.value;
-      const currentFixVal = fixCategorySelect.value;
-      
-      categorySelect.innerHTML = '';
-      editCategorySelect.innerHTML = '';
-      fixCategorySelect.innerHTML = '';
-
-      categories.forEach(cat => {
-        const option = document.createElement('option');
-        option.value = cat; option.textContent = cat;
-        categorySelect.appendChild(option);
-
-        const editOption = document.createElement('option');
-        editOption.value = cat; editOption.textContent = cat;
-        editCategorySelect.appendChild(editOption);
-
-        const fixOption = document.createElement('option');
-        fixOption.value = cat; fixOption.textContent = cat;
-        fixCategorySelect.appendChild(fixOption);
+      const selects = ['category', 'editCategory', 'tmplCategory', 'tmplUseCategory'];
+      selects.forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        const currentVal = el.value;
+        el.innerHTML = '';
+        categories.forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat; opt.textContent = cat;
+          el.appendChild(opt);
+        });
+        if (categories.includes(currentVal)) el.value = currentVal;
       });
-      
-      if (categories.includes(currentVal)) categorySelect.value = currentVal;
-      if (categories.includes(currentEditVal)) editCategorySelect.value = currentEditVal;
-      if (categories.includes(currentFixVal)) fixCategorySelect.value = currentFixVal;
     }
 
     /* カテゴリーモーダル */
@@ -639,138 +680,172 @@
       }
     }
 
-    /* --- 固定費一括登録関連 --- */
-    function openFixedCostModal() {
-      renderFixedCostSelectList();
-      document.getElementById('fixedCostModal').classList.add('open');
+    /* --- テンプレート関連 --- */
+    function openTemplateListModal() {
+      renderTemplateSelectList();
+      document.getElementById('templateListModal').classList.add('open');
     }
-    function closeFixedCostModal() {
-      document.getElementById('fixedCostModal').classList.remove('open');
+    function closeTemplateListModal() {
+      document.getElementById('templateListModal').classList.remove('open');
     }
-    function openFixedCostManageModal() {
-      renderFixedCostManageList();
-      document.getElementById('fixedCostManageModal').classList.add('open');
+    function openTemplateManageModal() {
+      renderTemplateManageList();
+      document.getElementById('templateManageModal').classList.add('open');
     }
-    function closeFixedCostManageModal() {
-      document.getElementById('fixedCostManageModal').classList.remove('open');
+    function closeTemplateManageModal() {
+      document.getElementById('templateManageModal').classList.remove('open');
     }
-
-    function renderFixedCostSelectList() {
-      const list = document.getElementById('fixedCostSelectList');
-      list.innerHTML = '';
-      if (fixedCosts.length === 0) {
-        list.innerHTML = '<li style="color: #888; text-align: center;">登録済みの固定費がありません。<br>「⚙️ 固定費テンプレート管理」から登録してください。</li>';
-        return;
-      }
-      fixedCosts.forEach(item => {
-        const li = document.createElement('li');
-        const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
-        li.innerHTML = `
-          <label style="display: flex; align-items: center; width: 100%; cursor: pointer;">
-            <input type="checkbox" class="fixed-item-check" value="${item.id}" checked>
-            <div class="item-info">
-              <div class="item-title">${item.title} - ${item.amount.toLocaleString()}円</div>
-              <div class="item-sub">${item.payer}が支払い (${typeText})</div>
-            </div>
-          </label>
-        `;
-        list.appendChild(li);
-      });
+    function closeTemplateUseModal() {
+      document.getElementById('templateUseModal').classList.remove('open');
     }
 
-    function renderFixedCostManageList() {
-      const list = document.getElementById('fixedCostManageList');
+    // テンプレート一覧を表示（選ぶ画面）
+    function renderTemplateSelectList() {
+      const list = document.getElementById('templateSelectList');
       list.innerHTML = '';
-      if (fixedCosts.length === 0) {
-        list.innerHTML = '<li style="color: #888; text-align: center;">固定費テンプレートはありません</li>';
+      if (templates.length === 0) {
+        list.innerHTML = '<li style="color: #888; text-align: center;">登録済みのテンプレートがありません。<br>「⚙️ テンプレートの設定・管理」から追加してください。</li>';
         return;
       }
-      fixedCosts.forEach(item => {
+      templates.forEach(item => {
         const li = document.createElement('li');
         const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
+        const amtText = item.amount ? `${item.amount.toLocaleString()}円` : '金額未定';
         li.innerHTML = `
           <div class="item-info">
-            <div class="item-title">${item.title} - ${item.amount.toLocaleString()}円</div>
-            <div class="item-sub">${item.payer}が支払い (${typeText})</div>
+            <div class="item-title">${item.title} (${amtText})</div>
+            <div class="item-sub">${item.payer}が支払い / ${typeText}</div>
           </div>
-          <button class="btn-delete" onclick="deleteFixedCostTemplate('${item.id}')">削除</button>
+          <button class="btn-select-tmpl" onclick="selectTemplateToUse('${item.id}')">選択</button>
         `;
         list.appendChild(li);
       });
     }
 
-    async function addFixedCostTemplate() {
-      const payer = document.querySelector('input[name="fixPayer"]:checked').value;
-      const category = document.getElementById('fixCategory').value;
-      const amount = Number(document.getElementById('fixAmount').value);
-      const memo = document.getElementById('fixMemo').value;
+    // テンプレートを選択した時：編集画面を呼び出す
+    function selectTemplateToUse(id) {
+      const item = templates.find(t => t.id === id);
+      if (!item) return;
+
+      closeTemplateListModal();
+
+      // 本日の日付をセット
+      const today = new Date();
+      const yyyy = today.getFullYear();
+      const mm = String(today.getMonth() + 1).padStart(2, '0');
+      const dd = String(today.getDate()).padStart(2, '0');
+      document.getElementById('tmplUseDateInput').value = `${yyyy}-${mm}-${dd}`;
+
+      // テンプレートの値を反映
+      const payerInput = document.querySelector(`input[name="tmplUsePayer"][value="${item.payer}"]`);
+      if (payerInput) payerInput.checked = true;
+
+      document.getElementById('tmplUseCategory').value = item.category || categories[0];
+      document.getElementById('tmplUseAmount').value = item.amount || '';
+      document.getElementById('tmplUseMemo').value = item.memo || '';
+
+      const splitType = item.splitType || 'EQUAL';
+      if (splitType === 'CUSTOM') {
+        isTmplUseCustomRatio = true;
+        document.getElementById('tmplUseRatioYusuke').value = item.ratioY !== undefined ? item.ratioY : 1;
+        document.getElementById('tmplUseRatioUrara').value = item.ratioU !== undefined ? item.ratioU : 1;
+      } else {
+        isTmplUseCustomRatio = false;
+        document.getElementById('tmplUseSplitType').value = ['EQUAL', 'PAY_ALL'].includes(splitType) ? splitType : 'EQUAL';
+      }
+
+      document.getElementById('tmplUseSimpleSplitArea').style.display = isTmplUseCustomRatio ? 'none' : 'block';
+      document.getElementById('tmplUseCustomSplitArea').style.display = isTmplUseCustomRatio ? 'block' : 'none';
+      document.getElementById('tmplUseToggleRatioBtn').textContent = isTmplUseCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
+
+      document.getElementById('templateUseModal').classList.add('open');
+    }
+
+    // テンプレートから編集した内容で確定登録
+    async function submitTemplateTransaction() {
+      const dateVal = document.getElementById('tmplUseDateInput').value;
+      const payer = document.querySelector('input[name="tmplUsePayer"]:checked').value;
+      const category = document.getElementById('tmplUseCategory').value;
+      const amount = Number(document.getElementById('tmplUseAmount').value);
+      const memo = document.getElementById('tmplUseMemo').value;
+      const title = memo ? `${category}（${memo}）` : category;
+
+      let splitType, ratioY = 1, ratioU = 1;
+      if (isTmplUseCustomRatio) {
+        splitType = 'CUSTOM';
+        ratioY = Number(document.getElementById('tmplUseRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('tmplUseRatioUrara').value) || 0;
+        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+      } else {
+        splitType = document.getElementById('tmplUseSplitType').value;
+      }
+
+      if (!dateVal) return alert('発生日を選択してください');
+      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
+
+      const formattedDate = dateVal.replace(/-/g, '/');
+
+      await db.collection('transactions').add({
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        date: formattedDate, rawDate: dateVal, createdAt: Date.now()
+      });
+
+      closeTemplateUseModal();
+    }
+
+    // テンプレートの設定管理一覧の描画
+    function renderTemplateManageList() {
+      const list = document.getElementById('templateManageList');
+      list.innerHTML = '';
+      if (templates.length === 0) {
+        list.innerHTML = '<li style="color: #888; text-align: center;">テンプレートはありません</li>';
+        return;
+      }
+      templates.forEach(item => {
+        const li = document.createElement('li');
+        const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
+        const amtText = item.amount ? `${item.amount.toLocaleString()}円` : '金額未定';
+        li.innerHTML = `
+          <div class="item-info">
+            <div class="item-title">${item.title} (${amtText})</div>
+            <div class="item-sub">${item.payer}が支払い / ${typeText}</div>
+          </div>
+          <button class="btn-delete" onclick="deleteTemplate('${item.id}')">削除</button>
+        `;
+        list.appendChild(li);
+      });
+    }
+
+    // テンプレート新規追加
+    async function addTemplate() {
+      const payer = document.querySelector('input[name="tmplPayer"]:checked').value;
+      const category = document.getElementById('tmplCategory').value;
+      const amount = Number(document.getElementById('tmplAmount').value) || 0;
+      const memo = document.getElementById('tmplMemo').value;
       const title = memo ? `${category}（${memo}）` : category;
       
       let splitType, ratioY = 1, ratioU = 1;
-      
-      if (isFixCustomRatio) {
+      if (isTmplCustomRatio) {
         splitType = 'CUSTOM';
-        ratioY = Number(document.getElementById('fixRatioYusuke').value) || 0;
-        ratioU = Number(document.getElementById('fixRatioUrara').value) || 0;
+        ratioY = Number(document.getElementById('tmplRatioYusuke').value) || 0;
+        ratioU = Number(document.getElementById('tmplRatioUrara').value) || 0;
         if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
       } else {
-        splitType = document.getElementById('fixSplitType').value;
+        splitType = document.getElementById('tmplSplitType').value;
       }
-
-      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
       await db.collection('fixedCosts').add({
         payer, category, memo, amount, title, splitType, ratioY, ratioU, createdAt: Date.now()
       });
 
-      document.getElementById('fixAmount').value = '';
-      document.getElementById('fixMemo').value = '';
+      document.getElementById('tmplAmount').value = '';
+      document.getElementById('tmplMemo').value = '';
     }
 
-    async function deleteFixedCostTemplate(id) {
-      if (confirm('この固定費テンプレートを削除しますか？')) {
+    async function deleteTemplate(id) {
+      if (confirm('このテンプレートを削除しますか？')) {
         await db.collection('fixedCosts').doc(id).delete();
       }
-    }
-
-    async function submitFixedCosts() {
-      const checkboxes = document.querySelectorAll('.fixed-item-check:checked');
-      if (checkboxes.length === 0) return alert('追加する固定費を選択してください。');
-
-      const today = new Date();
-      const yyyy = today.getFullYear();
-      const mm = String(today.getMonth() + 1).padStart(2, '0');
-      const dd = String(today.getDate()).padStart(2, '0');
-      const rawDate = `${yyyy}-${mm}-${dd}`;
-      const formattedDate = `${yyyy}/${mm}/${dd}`;
-
-      const batch = db.batch();
-      let count = 0;
-
-      checkboxes.forEach(cb => {
-        const item = fixedCosts.find(f => f.id === cb.value);
-        if (item) {
-          const docRef = db.collection('transactions').doc();
-          batch.set(docRef, {
-            payer: item.payer,
-            category: item.category,
-            memo: item.memo || '',
-            amount: item.amount,
-            title: item.title,
-            splitType: item.splitType,
-            ratioY: item.ratioY,
-            ratioU: item.ratioU,
-            date: formattedDate,
-            rawDate: rawDate,
-            createdAt: Date.now() + count // 並び順が重ならないよう僅かにずらす
-          });
-          count++;
-        }
-      });
-
-      await batch.commit();
-      closeFixedCostModal();
-      alert(`${count}件の固定費を今月の記録として一括追加しました！`);
     }
 
     /* 清算関連 */
