@@ -927,6 +927,26 @@
       } catch (e) {}
     }
 
+    /* --- AIコメント生成ヘルパー --- */
+    function getRandomAiGambleComment(resultText, payer) {
+      const comments = [
+        `🤖「${payer}さん、覚悟は決めましたか？ 運命の結果は『${resultText}』です！」`,
+        `🤖「${resultText}！ 敗者への慰めと勝者への拍手を送ります👏」`,
+        `🤖「これがギャンブルの醍醐味！『${resultText}』でフォームにセット完了！」`,
+        `🤖「${payer}さん、今日の運勢が試されましたね…結果は『${resultText}』です！」`
+      ];
+      return comments[Math.floor(Math.random() * comments.length)];
+    }
+
+    function getRandomAiSettleComment(summaryText, totalAmount, count) {
+      const comments = [
+        `🤖【AI精算レポート】\n今月もお疲れ様でした！計${count}件（合計${totalAmount.toLocaleString()}円）のやり取りを精算しました！\n清算結果：${summaryText}\n仲良く精算を完了させてね✨`,
+        `🤖【AI分析完了】\n無事にリセット完了です！合計${totalAmount.toLocaleString()}円分の思い出（と出費）でした。\n結論：${summaryText}！`,
+        `🤖【精算完了通知】\n今回の精算結果：${summaryText}\n二人の財布と絆が守られました！次の記録もバッチリ残していきましょう👍`
+      ];
+      return comments[Math.floor(Math.random() * comments.length)];
+    }
+
     /* --- 割り勘ルーレット関連 --- */
     let rouletteResult = null;
     const rouletteOptions = [
@@ -1019,7 +1039,9 @@
         document.getElementById('splitType').value = rouletteResult.splitType;
       }
 
+      const aiComment = getRandomAiGambleComment(rouletteResult.text, selectedPayer);
       closeRouletteModal();
+      alert(aiComment);
     }
 
     function toggleRatio(prefix) {
@@ -1643,8 +1665,10 @@
       if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
         const settledDate = new Date().toLocaleString('ja-JP');
         let balance = 0;
+        let totalAmount = 0;
 
         transactions.forEach((t) => {
+          totalAmount += t.amount;
           let yRatio = 1, uRatio = 1;
           if (t.splitType === 'CUSTOM') {
             yRatio = t.ratioY !== undefined ? t.ratioY : 1;
@@ -1676,6 +1700,7 @@
         }
 
         const itemsToSave = [...transactions].sort((a, b) => a.createdAt - b.createdAt);
+        const count = itemsToSave.length;
         
         await db.collection('settledGroups').add({
           date: settledDate,
@@ -1690,6 +1715,9 @@
           batch.delete(ref);
         });
         await batch.commit();
+
+        const aiComment = getRandomAiSettleComment(summaryText, totalAmount, count);
+        alert(aiComment);
       }
     }
 
