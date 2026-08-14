@@ -22,11 +22,9 @@
     .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
     .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
     .btn-template { width: 100%; padding: 10px; background: #6f42c1; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-bottom: 10px; }
-    .btn-action-group { display: flex; gap: 4px; }
+    .btn-action-group { display: flex; gap: 4px; align-items: center; }
     .btn-edit { background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
     .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
-    .btn-move { background: #e9ecef; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
-    .btn-move:disabled { opacity: 0.4; cursor: not-allowed; }
     .btn-select-tmpl { background: #007bff; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-weight: bold; font-size: 0.8em; cursor: pointer; }
     ul { list-style: none; padding: 0; margin: 0; }
     li { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
@@ -85,7 +83,14 @@
     .category-add-box { display: flex; gap: 6px; margin-bottom: 15px; }
     .category-add-box input { margin-bottom: 0; flex-grow: 1; }
     .category-add-box button { padding: 8px 12px; background: #007bff; color: white; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; white-space: nowrap; }
-    .category-list li { padding: 8px 0; }
+
+    /* ドラッグ＆ドロップ並べ替え用スタイル */
+    .drag-handle { color: #aaa; cursor: grab; padding: 4px 8px; font-size: 1.2em; user-select: none; touch-action: none; }
+    .drag-handle:active { cursor: grabbing; }
+    .draggable-list li { user-select: none; transition: transform 0.15s ease, background-color 0.2s ease, box-shadow 0.2s ease; }
+    .draggable-list li.dragging { opacity: 0.7; background: #eef6ff; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 6px; position: relative; z-index: 10; }
+    .draggable-list li.drag-over { border-top: 2px solid #007bff; }
+    .drag-guide { font-size: 0.75em; color: #888; text-align: center; margin-bottom: 8px; }
   </style>
 </head>
 <body>
@@ -190,7 +195,8 @@
         <input type="text" id="newCategoryInput" placeholder="新しい項目名">
         <button onclick="addCategory()">追加</button>
       </div>
-      <ul class="category-list" id="modalCategoryList"></ul>
+      <div class="drag-guide">☰ を長押しして上下に移動で順序変更</div>
+      <ul class="draggable-list" id="modalCategoryList"></ul>
     </div>
   </div>
 
@@ -378,7 +384,8 @@
       </div>
 
       <label style="font-weight: bold; color: #333;">登録済みテンプレート</label>
-      <ul id="templateManageList" style="margin-top: 5px;"></ul>
+      <div class="drag-guide">☰ を長押しして上下に移動で順序変更</div>
+      <ul class="draggable-list" id="templateManageList" style="margin-top: 5px;"></ul>
     </div>
   </div>
 
@@ -542,10 +549,11 @@
         }
       });
 
-      // テンプレート情報の同期（過去のfixedCostsコレクションと統合）
+      // テンプレート情報の同期（orderフィールド順にソート）
       db.collection('fixedCosts').onSnapshot(snapshot => {
         templates = [];
         snapshot.forEach(doc => templates.push({ id: doc.id, ...doc.data() }));
+        templates.sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
         renderTemplateSelectList();
         renderTemplateManageList();
       });
@@ -567,6 +575,93 @@
       });
     }
 
+    /* ドラッグ＆ドロップ汎用処理 */
+    function enableDragAndDrop(listEl, onReorder) {
+      let draggedItem = null;
+      let draggedIndex = null;
+
+      const items = listEl.querySelectorAll('li');
+      items.forEach((li, index) => {
+        const handle = li.querySelector('.drag-handle');
+        if (!handle) return;
+
+        // タッチ操作用（スマホ対応）
+        let touchTimer = null;
+        
+        handle.addEventListener('touchstart', (e) => {
+          touchTimer = setTimeout(() => {
+            draggedItem = li;
+            draggedIndex = index;
+            li.classList.add('dragging');
+          }, 150); // 150ms 長押しでドラッグ開始
+        }, { passive: true });
+
+        handle.addEventListener('touchmove', (e) => {
+          if (!draggedItem) {
+            clearTimeout(touchTimer);
+            return;
+          }
+          e.preventDefault();
+          const touch = e.touches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          const closestLi = target ? target.closest('li') : null;
+
+          items.forEach(item => item.classList.remove('drag-over'));
+          if (closestLi && closestLi !== draggedItem && listEl.contains(closestLi)) {
+            closestLi.classList.add('drag-over');
+          }
+        }, { passive: false });
+
+        handle.addEventListener('touchend', (e) => {
+          clearTimeout(touchTimer);
+          if (!draggedItem) return;
+
+          const touch = e.changedTouches[0];
+          const target = document.elementFromPoint(touch.clientX, touch.clientY);
+          const closestLi = target ? target.closest('li') : null;
+
+          if (closestLi && closestLi !== draggedItem && listEl.contains(closestLi)) {
+            const targetIndex = Array.from(listEl.children).indexOf(closestLi);
+            onReorder(draggedIndex, targetIndex);
+          }
+
+          items.forEach(item => {
+            item.classList.remove('dragging');
+            item.classList.remove('drag-over');
+          });
+          draggedItem = null;
+        });
+
+        // マウス操作用（PC対応）
+        li.draggable = true;
+        li.addEventListener('dragstart', (e) => {
+          draggedItem = li;
+          draggedIndex = index;
+          li.classList.add('dragging');
+        });
+        li.addEventListener('dragover', (e) => {
+          e.preventDefault();
+          if (li !== draggedItem) li.classList.add('drag-over');
+        });
+        li.addEventListener('dragleave', () => {
+          li.classList.remove('drag-over');
+        });
+        li.addEventListener('drop', (e) => {
+          e.preventDefault();
+          li.classList.remove('drag-over');
+          if (draggedItem && li !== draggedItem) {
+            const targetIndex = index;
+            onReorder(draggedIndex, targetIndex);
+          }
+        });
+        li.addEventListener('dragend', () => {
+          li.classList.remove('dragging');
+          items.forEach(item => item.classList.remove('drag-over'));
+          draggedItem = null;
+        });
+      });
+    }
+
     /* カテゴリーモーダル */
     function openCategoryModal() {
       renderCategoryModalList();
@@ -581,25 +676,26 @@
       categories.forEach((cat, index) => {
         const li = document.createElement('li');
         li.innerHTML = `
-          <span>${cat}</span>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="drag-handle">☰</span>
+            <span style="font-weight: bold; color: #333;">${cat}</span>
+          </div>
           <div class="btn-action-group">
-            <button class="btn-move" onclick="moveCategory(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
-            <button class="btn-move" onclick="moveCategory(${index}, 1)" ${index === categories.length - 1 ? 'disabled' : ''}>↓</button>
             <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
           </div>
         `;
         modalList.appendChild(li);
       });
+
+      enableDragAndDrop(modalList, async (fromIndex, toIndex) => {
+        const newCategories = [...categories];
+        const [moved] = newCategories.splice(fromIndex, 1);
+        newCategories.splice(toIndex, 0, moved);
+        categories = newCategories;
+        await db.collection('settings').doc('categories').set({ list: newCategories });
+      });
     }
-    async function moveCategory(index, direction) {
-      const newIndex = index + direction;
-      if (newIndex < 0 || newIndex >= categories.length) return;
-      const newCategories = [...categories];
-      const temp = newCategories[index];
-      newCategories[index] = newCategories[newIndex];
-      newCategories[newIndex] = temp;
-      await db.collection('settings').doc('categories').set({ list: newCategories });
-    }
+
     async function addCategory() {
       const input = document.getElementById('newCategoryInput');
       const name = input.value.trim();
@@ -854,7 +950,7 @@
       closeTemplateUseModal();
     }
 
-    // テンプレートの設定管理一覧の描画
+    // テンプレートの設定管理一覧の描画（ドラッグ＆ドロップ対応）
     function renderTemplateManageList() {
       const list = document.getElementById('templateManageList');
       list.innerHTML = '';
@@ -867,6 +963,7 @@
         const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
         const amtText = item.amount ? `${item.amount.toLocaleString()}円` : '金額未定';
         li.innerHTML = `
+          <span class="drag-handle">☰</span>
           <div class="item-info">
             <div class="item-title">${item.title} (${amtText})</div>
             <div class="item-sub">${item.payer}が支払い / ${typeText}</div>
@@ -877,6 +974,20 @@
           </div>
         `;
         list.appendChild(li);
+      });
+
+      enableDragAndDrop(list, async (fromIndex, toIndex) => {
+        const newTemplates = [...templates];
+        const [moved] = newTemplates.splice(fromIndex, 1);
+        newTemplates.splice(toIndex, 0, moved);
+        templates = newTemplates;
+
+        const batch = db.batch();
+        templates.forEach((t, idx) => {
+          const ref = db.collection('fixedCosts').doc(t.id);
+          batch.update(ref, { order: idx });
+        });
+        await batch.commit();
       });
     }
 
@@ -898,8 +1009,11 @@
         splitType = document.getElementById('tmplSplitType').value;
       }
 
+      const nextOrder = templates.length > 0 ? (templates[templates.length - 1].order ?? Date.now()) + 1 : Date.now();
+
       await db.collection('fixedCosts').add({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU, createdAt: Date.now()
+        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        createdAt: Date.now(), order: nextOrder
       });
 
       document.getElementById('tmplAmount').value = '';
