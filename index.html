@@ -18,7 +18,7 @@
     .label-container { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
     label { font-size: 0.85em; color: #666; font-weight: bold; }
     .btn-link { background: none; border: none; color: #007bff; font-size: 0.8em; cursor: pointer; text-decoration: underline; padding: 0; }
-    input[type="text"], input[type="number"], input[type="date"], select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
+    input, select { width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 0.95em; margin-bottom: 8px; }
     .btn-submit { width: 100%; padding: 12px; background: #28a745; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 1em; cursor: pointer; }
     .btn-settle { width: 100%; padding: 10px; background: #17a2b8; color: white; border: none; border-radius: 6px; font-weight: bold; font-size: 0.9em; cursor: pointer; margin-top: 5px; }
     .btn-action-group { display: flex; gap: 4px; }
@@ -32,28 +32,6 @@
     .item-title { font-weight: bold; color: #333; }
     .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
     
-    /* 支払い者ボタン（ラジオボタン） */
-    .radio-group { display: flex; gap: 10px; margin-bottom: 10px; }
-    .radio-group input[type="radio"] { display: none; }
-    .radio-group label {
-      flex: 1;
-      text-align: center;
-      padding: 10px;
-      background: #e9ecef;
-      border-radius: 6px;
-      cursor: pointer;
-      font-weight: bold;
-      color: #495057;
-      border: 2px solid transparent;
-      transition: 0.2s;
-      margin-bottom: 0;
-    }
-    .radio-group input[type="radio"]:checked + label {
-      background: #eef6ff;
-      border-color: #007bff;
-      color: #007bff;
-    }
-
     /* 割合カスタム入力 */
     .custom-ratio-inputs { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 8px; background: #f8f9fa; padding: 12px; border: 1px solid #ccc; border-radius: 6px; }
     .custom-ratio-inputs input { margin-bottom: 0; width: 60px; text-align: center; font-size: 1.1em; font-weight: bold; }
@@ -103,13 +81,10 @@
       <input type="date" id="dateInput">
 
       <label>誰が払った？</label>
-      <div class="radio-group">
-        <input type="radio" id="payerYusuke" name="payer" value="ゆうすけ" checked>
-        <label for="payerYusuke">ゆうすけ</label>
-        
-        <input type="radio" id="payerUrara" name="payer" value="うらら">
-        <label for="payerUrara">うらら</label>
-      </div>
+      <select id="payer">
+        <option value="ゆうすけ">ゆうすけ</option>
+        <option value="うらら">うらら</option>
+      </select>
 
       <div class="label-container">
         <label>項目（カテゴリー）</label>
@@ -203,13 +178,10 @@
         <input type="date" id="editDateInput">
 
         <label>誰が払った？</label>
-        <div class="radio-group">
-          <input type="radio" id="editPayerYusuke" name="editPayer" value="ゆうすけ">
-          <label for="editPayerYusuke">ゆうすけ</label>
-          
-          <input type="radio" id="editPayerUrara" name="editPayer" value="うらら">
-          <label for="editPayerUrara">うらら</label>
-        </div>
+        <select id="editPayer">
+          <option value="ゆうすけ">ゆうすけ</option>
+          <option value="うらら">うらら</option>
+        </select>
 
         <label>項目（カテゴリー）</label>
         <select id="editCategory"></select>
@@ -431,7 +403,7 @@
 
     async function addTransaction() {
       const dateVal = document.getElementById('dateInput').value;
-      const payer = document.querySelector('input[name="payer"]:checked').value;
+      const payer = document.getElementById('payer').value;
       const category = document.getElementById('category').value;
       const amount = Number(document.getElementById('amount').value);
       const memo = document.getElementById('title').value;
@@ -471,9 +443,6 @@
       document.getElementById('splitType').value = 'EQUAL';
       document.getElementById('ratioYusuke').value = '1';
       document.getElementById('ratioUrara').value = '1';
-      
-      // ラジオボタンをゆうすけに戻す
-      document.getElementById('payerYusuke').checked = true;
     }
 
     function openEditModal(id) {
@@ -482,11 +451,7 @@
 
       document.getElementById('editId').value = item.id;
       document.getElementById('editDateInput').value = item.rawDate || item.date.replace(/\//g, '-');
-      
-      // ラジオボタンの選択状態を反映
-      const payerInput = document.querySelector(`input[name="editPayer"][value="${item.payer}"]`);
-      if (payerInput) payerInput.checked = true;
-
+      document.getElementById('editPayer').value = item.payer;
       document.getElementById('editCategory').value = item.category || categories[0];
       document.getElementById('editAmount').value = item.amount;
       document.getElementById('editMemo').value = item.memo || '';
@@ -517,7 +482,7 @@
     async function saveEditedTransaction() {
       const id = document.getElementById('editId').value;
       const dateVal = document.getElementById('editDateInput').value;
-      const payer = document.querySelector('input[name="editPayer"]:checked').value;
+      const payer = document.getElementById('editPayer').value;
       const category = document.getElementById('editCategory').value;
       const amount = Number(document.getElementById('editAmount').value);
       const memo = document.getElementById('editMemo').value;
