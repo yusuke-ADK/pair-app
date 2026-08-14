@@ -24,19 +24,12 @@
     .btn-action-group { display: flex; gap: 4px; }
     .btn-edit { background: #ffc107; color: #212529; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
     .btn-delete { background: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.75em; cursor: pointer; }
-    .btn-move { background: #e9ecef; border: none; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-size: 0.8em; }
-    .btn-move:disabled { opacity: 0.4; cursor: not-allowed; }
     ul { list-style: none; padding: 0; margin: 0; }
     li { border-bottom: 1px solid #eee; padding: 10px 0; font-size: 0.85em; display: flex; justify-content: space-between; align-items: center; }
     .item-info { flex-grow: 1; padding-right: 8px; }
     .item-title { font-weight: bold; color: #333; }
     .item-sub { color: #666; font-size: 0.85em; margin-top: 2px; }
     
-    /* 並べ替えコントロール */
-    .sort-controls { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; background: #f1f3f5; padding: 8px 12px; border-radius: 8px; font-size: 0.85em; }
-    .sort-controls label { margin-bottom: 0; font-weight: normal; }
-    .sort-controls select { margin-bottom: 0; width: auto; padding: 4px 8px; font-size: 0.9em; flex-grow: 1; }
-
     /* アコーディオン */
     .settlement-block { background: #f1f3f5; border-radius: 8px; margin-bottom: 10px; font-size: 0.85em; overflow: hidden; border: 1px solid #e9ecef; }
     .settlement-header { display: flex; justify-content: space-between; align-items: center; padding: 12px; cursor: pointer; user-select: none; transition: background 0.2s; }
@@ -72,7 +65,7 @@
   <!-- 入力フォーム -->
   <div class="card">
     <div class="form-group">
-      <label>発生日</label>
+      <label>日付</label>
       <input type="date" id="dateInput">
 
       <label>誰が払った？</label>
@@ -106,18 +99,6 @@
   <!-- 未精算の履歴 -->
   <div class="card">
     <h3>未精算の記録</h3>
-    <div class="sort-controls">
-      <label>並び替え:</label>
-      <select id="sortKey" onchange="updateView()">
-        <option value="createdAt" selected>登録日時</option>
-        <option value="date">発生日</option>
-        <option value="category">項目</option>
-      </select>
-      <select id="sortOrder" onchange="updateView()">
-        <option value="desc" selected>降順 ▼</option>
-        <option value="asc">昇順 ▲</option>
-      </select>
-    </div>
     <ul id="historyList"></ul>
   </div>
 
@@ -152,7 +133,7 @@
       <div class="form-group">
         <input type="hidden" id="editId">
 
-        <label>発生日</label>
+        <label>日付</label>
         <input type="date" id="editDateInput">
 
         <label>誰が払った？</label>
@@ -182,6 +163,7 @@
   </div>
 
   <script>
+    // 先ほど送っていただいたFirebase設定情報を埋め込んでいます
     const firebaseConfig = {
       apiKey: "AIzaSyB9PUPbJLyY3JM_Hv7Nrr9f62iJW8edulU",
       authDomain: "pair-app-61a15.firebaseapp.com",
@@ -229,22 +211,12 @@
           db.collection('settings').doc('categories').set({ list: defaultCategories });
         }
         updateCategorySelect();
-        
-        // モーダルが開いている場合は表示を更新
-        if (document.getElementById('categoryModal').classList.contains('open')) {
-          renderCategoryModalList();
-        }
       });
     }
 
     function updateCategorySelect() {
       const categorySelect = document.getElementById('category');
       const editCategorySelect = document.getElementById('editCategory');
-      
-      // 現在選択されている値を保持
-      const currentVal = categorySelect.value;
-      const currentEditVal = editCategorySelect.value;
-      
       categorySelect.innerHTML = '';
       editCategorySelect.innerHTML = '';
 
@@ -259,9 +231,6 @@
         editOption.textContent = cat;
         editCategorySelect.appendChild(editOption);
       });
-      
-      if (categories.includes(currentVal)) categorySelect.value = currentVal;
-      if (categories.includes(currentEditVal)) editCategorySelect.value = currentEditVal;
     }
 
     function openCategoryModal() {
@@ -280,28 +249,10 @@
         const li = document.createElement('li');
         li.innerHTML = `
           <span>${cat}</span>
-          <div class="btn-action-group">
-            <button class="btn-move" onclick="moveCategory(${index}, -1)" ${index === 0 ? 'disabled' : ''}>↑</button>
-            <button class="btn-move" onclick="moveCategory(${index}, 1)" ${index === categories.length - 1 ? 'disabled' : ''}>↓</button>
-            <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
-          </div>
+          <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
         `;
         modalList.appendChild(li);
       });
-    }
-
-    async function moveCategory(index, direction) {
-      const newIndex = index + direction;
-      if (newIndex < 0 || newIndex >= categories.length) return;
-      
-      const newCategories = [...categories];
-      // 順番を入れ替える
-      const temp = newCategories[index];
-      newCategories[index] = newCategories[newIndex];
-      newCategories[newIndex] = temp;
-      
-      // Firestoreを更新（onSnapshotが反応して自動的に画面も再描画されます）
-      await db.collection('settings').doc('categories').set({ list: newCategories });
     }
 
     async function addCategory() {
@@ -319,6 +270,7 @@
       if (confirm(`「${categories[index]}」を削除しますか？`)) {
         const newCategories = categories.filter((_, i) => i !== index);
         await db.collection('settings').doc('categories').set({ list: newCategories });
+        renderCategoryModalList();
       }
     }
 
@@ -331,7 +283,7 @@
       const title = memo ? `${category}（${memo}）` : category;
       const splitType = document.getElementById('splitType').value;
 
-      if (!dateVal) return alert('発生日を選択してください');
+      if (!dateVal) return alert('日付を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
       const formattedDate = dateVal.replace(/-/g, '/');
@@ -373,7 +325,7 @@
       const memo = document.getElementById('editMemo').value;
       const splitType = document.getElementById('editSplitType').value;
 
-      if (!dateVal) return alert('発生日を選択してください');
+      if (!dateVal) return alert('日付を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
       const formattedDate = dateVal.replace(/-/g, '/');
@@ -421,12 +373,9 @@
       if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
         const settledDate = new Date().toLocaleString('ja-JP');
         
-        // 並び替え状態に関わらず、登録日時の古い順に保存する
-        const itemsToSave = [...transactions].sort((a, b) => a.createdAt - b.createdAt);
-        
         await db.collection('settledGroups').add({
           date: settledDate,
-          items: itemsToSave,
+          items: transactions,
           createdAt: Date.now()
         });
 
@@ -441,8 +390,13 @@
 
     function updateView() {
       let balance = 0;
-      
-      // 合計金額の計算（並べ替え前に行う）
+      const historyList = document.getElementById('historyList');
+      historyList.innerHTML = '';
+
+      if (transactions.length === 0) {
+        historyList.innerHTML = '<li style="justify-content: center; color: #888;">未精算の記録はありません</li>';
+      }
+
       transactions.forEach((t) => {
         const half = t.amount / 2;
         if (t.splitType === 'EQUAL') {
@@ -452,37 +406,7 @@
           if (t.payer === 'ゆうすけ') balance += t.amount;
           if (t.payer === 'うらら') balance -= t.amount;
         }
-      });
 
-      // 並べ替え処理
-      const sortKey = document.getElementById('sortKey').value;
-      const sortOrder = document.getElementById('sortOrder').value;
-      
-      let sortedTransactions = [...transactions];
-      sortedTransactions.sort((a, b) => {
-        let valA = a[sortKey];
-        let valB = b[sortKey];
-        
-        // 発生日の場合は rawDate (YYYY-MM-DD) を使うと正確
-        if (sortKey === 'date') {
-          valA = a.rawDate || a.date;
-          valB = b.rawDate || b.date;
-        }
-        
-        if (valA < valB) return sortOrder === 'asc' ? -1 : 1;
-        if (valA > valB) return sortOrder === 'asc' ? 1 : -1;
-        return 0;
-      });
-
-      // 未精算リストの描画
-      const historyList = document.getElementById('historyList');
-      historyList.innerHTML = '';
-
-      if (sortedTransactions.length === 0) {
-        historyList.innerHTML = '<li style="justify-content: center; color: #888;">未精算の記録はありません</li>';
-      }
-
-      sortedTransactions.forEach((t) => {
         const li = document.createElement('li');
         const typeText = t.splitType === 'EQUAL' ? '折半' : '全額立替';
         
@@ -499,7 +423,6 @@
         historyList.appendChild(li);
       });
 
-      // 清算結果の描画
       const resultBox = document.getElementById('resultBox');
       if (balance > 0) {
         resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
@@ -509,7 +432,6 @@
         resultBox.textContent = `貸し借りなし（清算済み）`;
       }
 
-      // 精算済みリストの描画
       const settledList = document.getElementById('settledHistoryList');
       settledList.innerHTML = '';
 
