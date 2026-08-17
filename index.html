@@ -1609,13 +1609,13 @@
 
       alert(
         `【これで記録しました】\n\n` +
-        `・発生日：${formattedDate}\n` +
-        `・誰が払ったか：${payer}\n` +
-        `・カテゴリ：${category}\n` +
-        `・金額：${amount.toLocaleString()}円\n` +
-        `・詳細メモ：${memo || '（なし）'}\n` +
-        `・割り方：${ratioText}\n` +
-        `・精算内容：${payText}`
+        `📅 発生日：${formattedDate}\n` +
+        `👤 誰が払ったか：${payer}\n` +
+        `🏷️ カテゴリ：${category}\n` +
+        `💰 金額：${amount.toLocaleString()}円\n` +
+        `📝 詳細メモ：${memo || '（なし）'}\n` +
+        `⚖️ 割り方：${ratioText}\n` +
+        `🔄 精算内容：${payText}`
       );
 
       document.getElementById('amount').value = '';
@@ -1843,13 +1843,13 @@
 
       alert(
         `【これで記録しました】\n\n` +
-        `・発生日：${formattedDate}\n` +
-        `・誰が払ったか：${payer}\n` +
-        `・カテゴリ：${category}\n` +
-        `・金額：${amount.toLocaleString()}円\n` +
-        `・詳細メモ：${memo || '（なし）'}\n` +
-        `・割り方：${ratioText}\n` +
-        `・精算内容：${payText}`
+        `📅 発生日：${formattedDate}\n` +
+        `👤 誰が払ったか：${payer}\n` +
+        `🏷️ カテゴリ：${category}\n` +
+        `💰 金額：${amount.toLocaleString()}円\n` +
+        `📝 詳細メモ：${memo || '（なし）'}\n` +
+        `⚖️ 割り方：${ratioText}\n` +
+        `🔄 精算内容：${payText}`
       );
 
       closeTemplateUseModal();
@@ -2166,90 +2166,68 @@
 
       const resultBox = document.getElementById('resultBox');
       if (balance > 0) {
-        resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円 支払う`;
+        resultBox.textContent = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円`;
       } else if (balance < 0) {
-        resultBox.textContent = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円 支払う`;
+        resultBox.textContent = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円`;
       } else {
-        resultBox.textContent = `貸し借りなし（清算済み）`;
+        resultBox.textContent = "貸し借りなし（0円）";
       }
 
       const settledList = document.getElementById('settledHistoryList');
       settledList.innerHTML = '';
 
       if (settledGroups.length === 0) {
-        settledList.innerHTML = '<p style="text-align: center; color: var(--text-sub); font-size: 0.85em;">過去の精算履歴はありません</p>';
-      } else {
-        settledGroups.forEach((group) => {
-          const totalAmount = group.items.reduce((sum, item) => sum + item.amount, 0);
-          const div = document.createElement('div');
-          div.className = 'settlement-block';
-          
-          let itemsHtml = group.items.map(i => {
-            const typeText = getRatioDisplayText(i.splitType, i.ratioY, i.ratioU);
-            return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
-          }).join('<br>');
-
-          let summaryDisp = group.summaryText;
-          if (!summaryDisp && group.items && group.items.length > 0) {
-            let histBalance = 0;
-            group.items.forEach(t => {
-              let yRatio = 1, uRatio = 1;
-              if (t.splitType === 'CUSTOM') {
-                yRatio = t.ratioY !== undefined ? t.ratioY : 1;
-                uRatio = t.ratioU !== undefined ? t.ratioU : 1;
-              } else if (t.splitType === 'PAY_ALL') {
-                if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
-                else { yRatio = 1; uRatio = 0; }
-              } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
-                const parts = t.splitType.split('_');
-                yRatio = parseInt(parts[1], 10);
-                uRatio = parseInt(parts[2], 10);
-              }
-              const totalRatio = yRatio + uRatio;
-              if (totalRatio > 0) {
-                if (t.payer === 'ゆうすけ') {
-                  histBalance += Math.round((t.amount * uRatio) / totalRatio);
-                } else if (t.payer === 'うらら') {
-                  histBalance -= Math.round((t.amount * yRatio) / totalRatio);
-                }
-              }
-            });
-
-            if (histBalance > 0) {
-              summaryDisp = `うらら ➔ ゆうすけ へ ${histBalance.toLocaleString()}円`;
-            } else if (histBalance < 0) {
-              summaryDisp = `ゆうすけ ➔ うらら へ ${Math.abs(histBalance).toLocaleString()}円`;
-            } else {
-              summaryDisp = "貸し借りなし（清算済み）";
-            }
-          }
-          summaryDisp = summaryDisp || '清算額データなし';
-
-          div.innerHTML = `
-            <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
-              <div class="settlement-title-info">
-                <span class="accordion-icon" id="icon-${group.id}">▶</span>
-                <span>${group.date} (${group.items.length}件 / 合計 ${totalAmount.toLocaleString()}円)</span>
-              </div>
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span style="font-weight: bold; color: var(--primary-color);">${summaryDisp}</span>
-                <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
-              </div>
-            </div>
-            <div class="settlement-details" id="details-${group.id}">
-              ${itemsHtml}
-            </div>
-          `;
-          settledList.appendChild(div);
-        });
+        settledList.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 0.85em; padding: 10px;">精算済みの履歴はありません</div>';
       }
+
+      settledGroups.forEach((group) => {
+        const block = document.createElement('div');
+        block.className = 'settlement-block';
+
+        let itemsHtml = '';
+        if (group.items && group.items.length > 0) {
+          group.items.forEach(item => {
+            const ratioStr = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
+            itemsHtml += `
+              <li style="padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,0.05);">
+                <div>
+                  <span style="font-weight: bold; color: var(--text-main);">${item.title}</span> 
+                  <span style="color: var(--primary-color); font-weight: bold;">(${item.amount.toLocaleString()}円)</span>
+                </div>
+                <div style="font-size: 0.8em; color: var(--text-sub);">
+                  ${item.date} / ${item.payer}が支払い / ${ratioStr}
+                </div>
+              </li>
+            `;
+          });
+        }
+
+        block.innerHTML = `
+          <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
+            <div class="settlement-title-info">
+              <span class="accordion-icon" id="icon-${group.id}">▶</span>
+              <div>
+                <div>${group.date} の精算</div>
+                <div style="font-size: 0.8em; color: var(--primary-color); font-weight: normal; margin-top: 2px;">
+                  ${group.summaryText}
+                </div>
+              </div>
+            </div>
+            <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
+          </div>
+          <div class="settlement-details" id="details-${group.id}">
+            <ul style="margin: 0; padding: 0;">
+              ${itemsHtml}
+            </ul>
+          </div>
+        `;
+        settledList.appendChild(block);
+      });
     }
 
     // 初期化
-    window.addEventListener('DOMContentLoaded', () => {
-      setDefaultDate();
-      initRealtimeSync();
-    });
+    setDefaultDate();
+    initRealtimeSync();
   </script>
 </body>
 </html>
