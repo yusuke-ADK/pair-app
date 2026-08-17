@@ -1583,6 +1583,41 @@
         date: formattedDate, rawDate: dateVal, createdAt: Date.now()
       });
 
+      // どっちがどっちに支払うことになるか計算
+      let calcYRatio = 1, calcURatio = 1;
+      if (splitType === 'CUSTOM') {
+        calcYRatio = ratioY;
+        calcURatio = ratioU;
+      } else if (splitType === 'PAY_ALL') {
+        if (payer === 'ゆうすけ') { calcYRatio = 0; calcURatio = 1; }
+        else { calcYRatio = 1; calcURatio = 0; }
+      }
+
+      let payText = '';
+      const totalRatio = calcYRatio + calcURatio;
+      if (totalRatio > 0) {
+        if (payer === 'ゆうすけ') {
+          const amt = Math.round((amount * calcURatio) / totalRatio);
+          payText = amt > 0 ? `うらら ➔ ゆうすけ ${amt.toLocaleString()}円` : '支払いなし（0円）';
+        } else if (payer === 'うらら') {
+          const amt = Math.round((amount * calcYRatio) / totalRatio);
+          payText = amt > 0 ? `ゆうすけ ➔ うらら ${amt.toLocaleString()}円` : '支払いなし（0円）';
+        }
+      }
+
+      const ratioText = getRatioDisplayText(splitType, ratioY, ratioU);
+
+      alert(
+        `【これで記録しました】\n\n` +
+        `・発生日：${formattedDate}\n` +
+        `・誰が払ったか：${payer}\n` +
+        `・カテゴリ：${category}\n` +
+        `・金額：${amount.toLocaleString()}円\n` +
+        `・詳細メモ：${memo || '（なし）'}\n` +
+        `・割り方：${ratioText}\n` +
+        `・精算内容：${payText}`
+      );
+
       document.getElementById('amount').value = '';
       document.getElementById('title').value = '';
       
@@ -1781,6 +1816,41 @@
         payer, category, memo, amount, title, splitType, ratioY, ratioU,
         date: formattedDate, rawDate: dateVal, createdAt: Date.now()
       });
+
+      // どっちがどっちに支払うことになるか計算
+      let calcYRatio = 1, calcURatio = 1;
+      if (splitType === 'CUSTOM') {
+        calcYRatio = ratioY;
+        calcURatio = ratioU;
+      } else if (splitType === 'PAY_ALL') {
+        if (payer === 'ゆうすけ') { calcYRatio = 0; calcURatio = 1; }
+        else { calcYRatio = 1; calcURatio = 0; }
+      }
+
+      let payText = '';
+      const totalRatio = calcYRatio + calcURatio;
+      if (totalRatio > 0) {
+        if (payer === 'ゆうすけ') {
+          const amt = Math.round((amount * calcURatio) / totalRatio);
+          payText = amt > 0 ? `うらら ➔ ゆうすけ ${amt.toLocaleString()}円` : '支払いなし（0円）';
+        } else if (payer === 'うらら') {
+          const amt = Math.round((amount * calcYRatio) / totalRatio);
+          payText = amt > 0 ? `ゆうすけ ➔ うらら ${amt.toLocaleString()}円` : '支払いなし（0円）';
+        }
+      }
+
+      const ratioText = getRatioDisplayText(splitType, ratioY, ratioU);
+
+      alert(
+        `【これで記録しました】\n\n` +
+        `・発生日：${formattedDate}\n` +
+        `・誰が払ったか：${payer}\n` +
+        `・カテゴリ：${category}\n` +
+        `・金額：${amount.toLocaleString()}円\n` +
+        `・詳細メモ：${memo || '（なし）'}\n` +
+        `・割り方：${ratioText}\n` +
+        `・精算内容：${payText}`
+      );
 
       closeTemplateUseModal();
     }
@@ -2119,7 +2189,6 @@
             return `・[${i.date}] ${i.title}: ${i.amount.toLocaleString()}円 (${i.payer}立替 / ${typeText})`;
           }).join('<br>');
 
-          // ★修正ポイント：もし古いデータに summaryText がなくても、保存されている items から動的に計算して表示する
           let summaryDisp = group.summaryText;
           if (!summaryDisp && group.items && group.items.length > 0) {
             let histBalance = 0;
@@ -2160,17 +2229,12 @@
             <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
               <div class="settlement-title-info">
                 <span class="accordion-icon" id="icon-${group.id}">▶</span>
-                <div>
-                  <div>精算日時: ${group.date}</div>
-                  <div style="font-size: 0.9em; color: var(--primary-color); font-weight: bold; margin-top: 2px;">
-                    ${summaryDisp}
-                  </div>
-                  <div style="font-size: 0.8em; color: var(--text-sub); font-weight: normal; margin-top: 2px;">
-                    ${group.items.length}件 / 総利用額 ${totalAmount.toLocaleString()}円
-                  </div>
-                </div>
+                <span>${group.date} (${group.items.length}件 / 合計 ${totalAmount.toLocaleString()}円)</span>
               </div>
-              <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-weight: bold; color: var(--primary-color);">${summaryDisp}</span>
+                <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
+              </div>
             </div>
             <div class="settlement-details" id="details-${group.id}">
               ${itemsHtml}
@@ -2181,8 +2245,11 @@
       }
     }
 
-    setDefaultDate();
-    initRealtimeSync();
+    // 初期化
+    window.addEventListener('DOMContentLoaded', () => {
+      setDefaultDate();
+      initRealtimeSync();
+    });
   </script>
 </body>
 </html>
