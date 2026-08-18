@@ -138,6 +138,7 @@
 
     /* フォーム入力要素 */
     input[type="text"], input[type="number"], input[type="date"], select {
+      -webkit-appearance: none;
       width: 100%;
       padding: 11px 14px;
       box-sizing: border-box;
@@ -1202,7 +1203,7 @@
           `精算完了！今日の自分たちを誇りに思ってよし！✨`,
           `お金の清算が早いカップルは長続きする…という噂ですよ！`,
           `さあ、忘れないうちにサクッと決済を済ませてスッキリしましょう！`,
-          `綺麗にゼロになった画面を見るのって、なんでこんなに気持ちいいんでしょうね！`,
+          `綺麗にゼロになった画面を見るの secrets なんて気持ちいいんでしょうね！`,
           `借りがある方も貸しがある方も、最後は笑顔で握手です🤝`,
           `完璧な精算でした！それではまた次の立替でお会いしましょう！🤖`,
           `さあ、忘れちゃう前に今すぐ送金アプリを起動だ！📱`,
@@ -2170,62 +2171,10 @@
       } else if (balance < 0) {
         resultBox.textContent = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円`;
       } else {
-        resultBox.textContent = "貸し借りなし（0円）";
+        resultBox.textContent = "貸し借りなし（清算済み）";
       }
-
-      const settledList = document.getElementById('settledHistoryList');
-      settledList.innerHTML = '';
-
-      if (settledGroups.length === 0) {
-        settledList.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 0.85em; padding: 10px;">精算済みの履歴はありません</div>';
-      }
-
-      settledGroups.forEach((group) => {
-        const block = document.createElement('div');
-        block.className = 'settlement-block';
-
-        let itemsHtml = '';
-        if (group.items && group.items.length > 0) {
-          group.items.forEach(item => {
-            const ratioStr = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
-            itemsHtml += `
-              <li style="padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,0.05);">
-                <div>
-                  <span style="font-weight: bold; color: var(--text-main);">${item.title}</span> 
-                  <span style="color: var(--primary-color); font-weight: bold;">(${item.amount.toLocaleString()}円)</span>
-                </div>
-                <div style="font-size: 0.8em; color: var(--text-sub);">
-                  ${item.date} / ${item.payer}が支払い / ${ratioStr}
-                </div>
-              </li>
-            `;
-          });
-        }
-
-        block.innerHTML = `
-          <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
-            <div class="settlement-title-info">
-              <span class="accordion-icon" id="icon-${group.id}">▶</span>
-              <div>
-                <div>${group.date} の精算</div>
-                <div style="font-size: 0.8em; color: var(--primary-color); font-weight: normal; margin-top: 2px;">
-                  ${group.summaryText}
-                </div>
-              </div>
-            </div>
-            <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
-          </div>
-          <div class="settlement-details" id="details-${group.id}">
-            <ul style="margin: 0; padding: 0;">
-              ${itemsHtml}
-            </ul>
-          </div>
-        `;
-        settledList.appendChild(block);
-      });
     }
 
-    // 初期化
     setDefaultDate();
     initRealtimeSync();
   </script>
