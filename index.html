@@ -535,6 +535,53 @@
     .category-add-box button:hover { filter: brightness(1.08); }
     .category-add-box button:active { transform: scale(0.96); }
 
+    /* よく使う項目のワンタッチボタン */
+    .quick-category-buttons {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+    .btn-quick-category {
+      flex: 1 1 0;
+      min-width: 0;
+      padding: 9px 6px;
+      font-size: 0.82em;
+      font-weight: bold;
+      background: rgba(238, 241, 246, 0.85);
+      border: 1.5px solid #e2e5ea;
+      border-radius: var(--radius-md);
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.15s var(--ease-out);
+      min-height: 40px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .btn-quick-category:hover {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+    .btn-quick-category:active { transform: scale(0.96); }
+    .btn-quick-category.active {
+      background: var(--primary-light);
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+      box-shadow: var(--shadow-sm);
+    }
+
+    .btn-quick-star {
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 1.15em;
+      padding: 2px 6px;
+      line-height: 1;
+      transition: transform 0.15s ease;
+    }
+    .btn-quick-star:active { transform: scale(0.8); }
+
     /* ルーレット演出用スタイル */
     .roulette-box {
       text-align: center;
@@ -646,7 +693,8 @@
         <label>項目（カテゴリー）</label>
         <button type="button" class="btn-link" onclick="openCategoryModal()">⚙️ 項目を編集</button>
       </div>
-      <select id="category"></select>
+      <div class="quick-category-buttons" id="quickCategoryButtons"></div>
+      <select id="category" onchange="renderQuickCategoryButtons()"></select>
 
       <label>金額（円）</label>
       <input type="number" id="amount" placeholder="例: 3000">
@@ -750,7 +798,7 @@
         <input type="text" id="newCategoryInput" placeholder="新しい項目名">
         <button onclick="addCategory()">追加</button>
       </div>
-      <div class="drag-guide">☰ を長押しして上下に移動で順序変更</div>
+      <div class="drag-guide">☰ を長押しして上下に移動で順序変更 ／ ⭐ をタップでワンタッチボタン設定（最大3つ）</div>
       <ul class="draggable-list" id="modalCategoryList"></ul>
     </div>
   </div>
@@ -1014,9 +1062,11 @@
     const db = firebase.firestore();
 
     const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱費", "交通費", "娯楽・レジャー", "旅行", "その他"];
+    const defaultQuickCategories = ["食費", "外食代", "日用品"];
     let transactions = [];
     let settledGroups = [];
     let categories = defaultCategories;
+    let quickCategories = defaultQuickCategories;
     let templates = [];
     
     // 割合切り替えのステータス管理
@@ -1552,13 +1602,22 @@
       });
 
       db.collection('settings').doc('categories').onSnapshot(doc => {
-        if (doc.exists && doc.data().list) {
-          categories = doc.data().list;
+        const data = doc.exists ? doc.data() : {};
+        if (data.list) {
+          categories = data.list;
         } else {
           categories = defaultCategories;
-          db.collection('settings').doc('categories').set({ list: defaultCategories });
+        }
+        if (data.quickList) {
+          quickCategories = data.quickList;
+        } else {
+          quickCategories = defaultQuickCategories;
+        }
+        if (!doc.exists) {
+          db.collection('settings').doc('categories').set({ list: defaultCategories, quickList: defaultQuickCategories });
         }
         updateCategorySelect();
+        renderQuickCategoryButtons();
         
         if (document.getElementById('categoryModal').classList.contains('open')) {
           renderCategoryModalList();
@@ -1588,6 +1647,29 @@
         });
         if (categories.includes(currentVal)) el.value = currentVal;
       });
+    }
+
+    /* よく使う項目のワンタッチボタン（メイン入力フォーム用） */
+    function renderQuickCategoryButtons() {
+      const container = document.getElementById('quickCategoryButtons');
+      const select = document.getElementById('category');
+      if (!container || !select) return;
+      const currentVal = select.value;
+      const validQuick = quickCategories.filter(c => categories.includes(c));
+      container.innerHTML = '';
+      validQuick.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-quick-category' + (cat === currentVal ? ' active' : '');
+        btn.textContent = cat;
+        btn.onclick = () => selectQuickCategory(cat);
+        container.appendChild(btn);
+      });
+    }
+
+    function selectQuickCategory(cat) {
+      document.getElementById('category').value = cat;
+      renderQuickCategoryButtons();
     }
 
     /* ドラッグ＆ドロップ汎用処理 */
@@ -1688,12 +1770,14 @@
       modalList.innerHTML = '';
       categories.forEach((cat, index) => {
         const li = document.createElement('li');
+        const isQuick = quickCategories.includes(cat);
         li.innerHTML = `
           <div style="display: flex; align-items: center; gap: 8px;">
             <span class="drag-handle">☰</span>
             <span style="font-weight: bold; color: var(--text-main);">${cat}</span>
           </div>
           <div class="btn-action-group">
+            <button class="btn-quick-star" title="ワンタッチボタンに表示" onclick="toggleQuickCategory(${index})">${isQuick ? '⭐' : '☆'}</button>
             <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
           </div>
         `;
@@ -1705,7 +1789,7 @@
         const [moved] = newCategories.splice(fromIndex, 1);
         newCategories.splice(toIndex, 0, moved);
         categories = newCategories;
-        await db.collection('settings').doc('categories').set({ list: newCategories });
+        await db.collection('settings').doc('categories').set({ list: newCategories }, { merge: true });
       });
     }
 
@@ -1715,15 +1799,34 @@
       if (!name) return;
       if (categories.includes(name)) return alert('すでに存在する項目です');
       const newCategories = [...categories, name];
-      await db.collection('settings').doc('categories').set({ list: newCategories });
+      await db.collection('settings').doc('categories').set({ list: newCategories }, { merge: true });
       input.value = '';
     }
     async function deleteCategory(index) {
       if (categories.length <= 1) return alert('項目は最低1つ残す必要があります');
-      if (confirm(`「${categories[index]}」を削除しますか？`)) {
+      const target = categories[index];
+      if (confirm(`「${target}」を削除しますか？`)) {
         const newCategories = categories.filter((_, i) => i !== index);
-        await db.collection('settings').doc('categories').set({ list: newCategories });
+        const newQuickList = quickCategories.filter(c => c !== target);
+        await db.collection('settings').doc('categories').set({ list: newCategories, quickList: newQuickList }, { merge: true });
       }
+    }
+
+    /* ワンタッチボタン（クイックカテゴリー）の設定切り替え。最大3つまで */
+    async function toggleQuickCategory(index) {
+      const cat = categories[index];
+      let newQuickList;
+      if (quickCategories.includes(cat)) {
+        newQuickList = quickCategories.filter(c => c !== cat);
+      } else {
+        if (quickCategories.length >= 3) {
+          return alert('ワンタッチボタンは3つまで設定できます。先に他の項目を外してから追加してください。');
+        }
+        newQuickList = [...quickCategories, cat];
+      }
+      quickCategories = newQuickList;
+      await db.collection('settings').doc('categories').set({ quickList: newQuickList }, { merge: true });
+      renderCategoryModalList();
     }
 
     /* 通常の個別記録の追加 */
