@@ -315,6 +315,20 @@
     .btn-edit:hover { filter: brightness(0.96); }
     .btn-edit:active { transform: scale(0.95); }
 
+    .btn-rename {
+      background: linear-gradient(135deg, #74b9ff 0%, #4a90e2 100%);
+      color: white;
+      border: none;
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.75em;
+      font-weight: bold;
+      cursor: pointer;
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+    .btn-rename:hover { filter: brightness(1.05); }
+    .btn-rename:active { transform: scale(0.95); }
+
     .btn-delete {
       background: linear-gradient(135deg, #ff8a8f 0%, #ff5b69 100%);
       color: white;
@@ -1061,7 +1075,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱費", "交通費", "娯楽・レジャー", "旅行", "その他"];
+    const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱水費", "交通費", "娯楽・レジャー", "旅行", "その他"];
     const defaultQuickCategories = ["食費", "外食代", "日用品"];
     let transactions = [];
     let settledGroups = [];
@@ -1778,6 +1792,7 @@
           </div>
           <div class="btn-action-group">
             <button class="btn-quick-star" title="ワンタッチボタンに表示" onclick="toggleQuickCategory(${index})">${isQuick ? '⭐' : '☆'}</button>
+            <button class="btn-rename" onclick="renameCategory(${index})">名前変更</button>
             <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
           </div>
         `;
@@ -1810,6 +1825,21 @@
         const newQuickList = quickCategories.filter(c => c !== target);
         await db.collection('settings').doc('categories').set({ list: newCategories, quickList: newQuickList }, { merge: true });
       }
+    }
+
+    /* 項目名の変更（過去の記録に登録済みのタイトル・項目名はさかのぼって変更されません） */
+    async function renameCategory(index) {
+      const oldName = categories[index];
+      const input = prompt('新しい項目名を入力してください', oldName);
+      if (input === null) return;
+      const newName = input.trim();
+      if (!newName) return alert('項目名を入力してください');
+      if (newName === oldName) return;
+      if (categories.includes(newName)) return alert('すでに存在する項目名です');
+      const newCategories = [...categories];
+      newCategories[index] = newName;
+      const newQuickList = quickCategories.map(c => c === oldName ? newName : c);
+      await db.collection('settings').doc('categories').set({ list: newCategories, quickList: newQuickList }, { merge: true });
     }
 
     /* ワンタッチボタン（クイックカテゴリー）の設定切り替え。最大3つまで */
