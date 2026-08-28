@@ -673,9 +673,49 @@
         scroll-behavior: auto !important;
       }
     }
+
+    /* 通信状態バナー */
+    .sync-banner {
+      display: none;
+      position: sticky;
+      top: 0;
+      z-index: 999;
+      background: linear-gradient(135deg, #ff5b69 0%, #f13d4c 100%);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: var(--radius-md);
+      margin-bottom: 14px;
+      font-size: 0.85em;
+      font-weight: bold;
+      box-shadow: var(--shadow-sm);
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+    }
+    .sync-banner.show { display: flex; }
+    .sync-banner-text { flex: 1; line-height: 1.4; }
+    .sync-banner-reload {
+      background: rgba(255, 255, 255, 0.92);
+      color: var(--danger-hover);
+      border: none;
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      font-weight: bold;
+      font-size: 0.95em;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+    .sync-banner-reload:hover { filter: brightness(0.96); }
+    .sync-banner-reload:active { transform: scale(0.96); }
   </style>
 </head>
 <body>
+
+  <div class="sync-banner" id="syncBanner">
+    <span class="sync-banner-text" id="syncBannerText">通信エラーが発生しています</span>
+    <button type="button" class="sync-banner-reload" onclick="location.reload()">再読み込み</button>
+  </div>
 
   <h2 class="app-title">あだちとうららの立替メモ</h2>
 
@@ -1625,17 +1665,38 @@
       return '折半';
     }
 
+    function showSyncBanner(message) {
+      const banner = document.getElementById('syncBanner');
+      const text = document.getElementById('syncBannerText');
+      if (!banner || !text) return;
+      text.textContent = message;
+      banner.classList.add('show');
+    }
+
+    function hideSyncBanner() {
+      const banner = document.getElementById('syncBanner');
+      if (banner) banner.classList.remove('show');
+    }
+
     function initRealtimeSync() {
       db.collection('transactions').onSnapshot(snapshot => {
         transactions = [];
         snapshot.forEach(doc => transactions.push({ id: doc.id, ...doc.data() }));
         updateView();
+        if (navigator.onLine) hideSyncBanner();
+      }, error => {
+        console.error('transactions sync error:', error);
+        showSyncBanner('同期エラーが発生しています。最新の内容が反映されていない可能性があります');
       });
 
       db.collection('settledGroups').orderBy('createdAt', 'desc').onSnapshot(snapshot => {
         settledGroups = [];
         snapshot.forEach(doc => settledGroups.push({ id: doc.id, ...doc.data() }));
         updateView();
+        if (navigator.onLine) hideSyncBanner();
+      }, error => {
+        console.error('settledGroups sync error:', error);
+        showSyncBanner('同期エラーが発生しています。最新の内容が反映されていない可能性があります');
       });
 
       db.collection('settings').doc('categories').onSnapshot(doc => {
@@ -1659,6 +1720,10 @@
         if (document.getElementById('categoryModal').classList.contains('open')) {
           renderCategoryModalList();
         }
+        if (navigator.onLine) hideSyncBanner();
+      }, error => {
+        console.error('categories sync error:', error);
+        showSyncBanner('同期エラーが発生しています。最新の内容が反映されていない可能性があります');
       });
 
       db.collection('fixedCosts').onSnapshot(snapshot => {
@@ -1667,6 +1732,10 @@
         templates.sort((a, b) => (a.order ?? a.createdAt) - (b.order ?? b.createdAt));
         renderTemplateSelectList();
         renderTemplateManageList();
+        if (navigator.onLine) hideSyncBanner();
+      }, error => {
+        console.error('fixedCosts sync error:', error);
+        showSyncBanner('同期エラーが発生しています。最新の内容が反映されていない可能性があります');
       });
     }
 
@@ -2554,8 +2623,21 @@
       });
     }
 
+    function setupConnectivityWatcher() {
+      window.addEventListener('offline', () => {
+        showSyncBanner('オフラインです。データが最新でない可能性があります');
+      });
+      window.addEventListener('online', () => {
+        hideSyncBanner();
+      });
+      if (!navigator.onLine) {
+        showSyncBanner('オフラインです。データが最新でない可能性があります');
+      }
+    }
+
     // 初期化
     setDefaultDate();
+    setupConnectivityWatcher();
     initRealtimeSync();
   </script>
 </body>
