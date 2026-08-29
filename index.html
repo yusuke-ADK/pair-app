@@ -245,6 +245,13 @@
       border-color: var(--primary-color);
       transform: scale(0.97);
     }
+    .date-btn.active {
+      background: #ffffff;
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+      box-shadow: var(--shadow-sm);
+      transform: scale(1.02);
+    }
 
     /* 各種ボタン */
     .btn-submit {
@@ -553,6 +560,7 @@
     .quick-category-buttons {
       display: flex;
       gap: 6px;
+      margin-top: -6px;
       margin-bottom: 10px;
       flex-wrap: wrap;
     }
@@ -579,10 +587,11 @@
     }
     .btn-quick-category:active { transform: scale(0.96); }
     .btn-quick-category.active {
-      background: var(--primary-light);
+      background: #ffffff;
       border-color: var(--primary-color);
       color: var(--primary-color);
       box-shadow: var(--shadow-sm);
+      transform: scale(1.02);
     }
 
     .btn-quick-star {
@@ -726,12 +735,12 @@
 
     <div class="form-group">
       <label>発生日</label>
-      <input type="date" id="dateInput">
+      <input type="date" id="dateInput" oninput="updateDateShortcutActiveState()">
       <!-- 日付ショートカットボタン -->
       <div class="date-shortcuts">
-        <button type="button" class="date-btn" onclick="setDateShortcut(0)">今日</button>
-        <button type="button" class="date-btn" onclick="setDateShortcut(-1)">昨日</button>
-        <button type="button" class="date-btn" onclick="setDateShortcut(-2)">一昨日</button>
+        <button type="button" class="date-btn" data-offset="0" onclick="setDateShortcut(0)">今日</button>
+        <button type="button" class="date-btn" data-offset="-1" onclick="setDateShortcut(-1)">昨日</button>
+        <button type="button" class="date-btn" data-offset="-2" onclick="setDateShortcut(-2)">一昨日</button>
       </div>
 
       <label>誰が払った？</label>
@@ -747,8 +756,8 @@
         <label>項目（カテゴリー）</label>
         <button type="button" class="btn-link" onclick="openCategoryModal()">⚙️ 項目を編集</button>
       </div>
-      <div class="quick-category-buttons" id="quickCategoryButtons"></div>
       <select id="category" onchange="renderQuickCategoryButtons()"></select>
+      <div class="quick-category-buttons" id="quickCategoryButtons"></div>
 
       <label>金額（円）</label>
       <input type="number" id="amount" placeholder="例: 3000">
@@ -1146,13 +1155,26 @@
     }
 
     // 日付ショートカット処理
-    function setDateShortcut(offsetDays) {
+    function formatDateOffset(offsetDays) {
       const target = new Date();
       target.setDate(target.getDate() + offsetDays);
       const yyyy = target.getFullYear();
       const mm = String(target.getMonth() + 1).padStart(2, '0');
       const dd = String(target.getDate()).padStart(2, '0');
-      document.getElementById('dateInput').value = `${yyyy}-${mm}-${dd}`;
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function setDateShortcut(offsetDays) {
+      document.getElementById('dateInput').value = formatDateOffset(offsetDays);
+      updateDateShortcutActiveState();
+    }
+
+    function updateDateShortcutActiveState() {
+      const currentVal = document.getElementById('dateInput').value;
+      document.querySelectorAll('.date-shortcuts .date-btn').forEach(btn => {
+        const offset = parseInt(btn.dataset.offset, 10);
+        btn.classList.toggle('active', currentVal === formatDateOffset(offset));
+      });
     }
 
     /* --- Web Audio API による効果音生成 --- */
