@@ -9,6 +9,7 @@
   <!-- Firebase (SDK) -->
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-auth-compat.js"></script>
 
   <style>
     :root {
@@ -1133,6 +1134,11 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+
+    // 匿名サインイン（これが通らないとFirestoreにアクセスできないようにする）
+    firebase.auth().signInAnonymously().catch((error) => {
+      console.error("サインイン失敗:", error.code, error.message);
+    });
 
     const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱水費", "交通費", "娯楽・レジャー", "旅行", "その他"];
     const defaultQuickCategories = ["食費", "外食代", "日用品"];
@@ -2660,7 +2666,13 @@
     // 初期化
     setDefaultDate();
     setupConnectivityWatcher();
-    initRealtimeSync();
+
+    // サインインが完了してからデータの読み込みを開始する
+    firebase.auth().onAuthStateChanged((user) => {
+      if (user) {
+        initRealtimeSync();
+      }
+    });
   </script>
 </body>
 </html>
