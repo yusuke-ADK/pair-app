@@ -540,6 +540,65 @@
     }
     .btn-close:hover { background: rgba(0,0,0,0.1); }
     .btn-close:active { transform: scale(0.9); }
+
+    /* 電卓 */
+    .btn-calc {
+      background: none;
+      border: none;
+      color: var(--primary-color);
+      font-size: 0.8em;
+      cursor: pointer;
+      padding: 4px 2px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .btn-calc:hover { opacity: 0.75; }
+    .btn-calc:active { transform: scale(0.96); }
+    .calc-display {
+      background: rgba(241, 243, 246, 0.9);
+      border: 1.5px solid #e2e5ea;
+      border-radius: var(--radius-md);
+      padding: 16px 14px;
+      text-align: right;
+      font-size: 1.6em;
+      font-weight: bold;
+      color: var(--text-main);
+      margin-bottom: 12px;
+      word-break: break-all;
+      min-height: 1.3em;
+    }
+    .calc-keypad {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    .calc-key {
+      padding: 16px 0;
+      font-size: 1.1em;
+      font-weight: bold;
+      border: none;
+      border-radius: var(--radius-md);
+      cursor: pointer;
+      background: rgba(238, 241, 246, 0.9);
+      color: var(--text-main);
+      transition: filter 0.15s ease, transform 0.15s ease;
+      min-height: 48px;
+    }
+    .calc-key:active { transform: scale(0.94); }
+    .calc-key.op {
+      background: var(--primary-light);
+      color: var(--primary-color);
+    }
+    .calc-key.clear {
+      background: rgba(255, 91, 105, 0.12);
+      color: var(--danger-color);
+    }
+    .calc-key.equal {
+      background: linear-gradient(135deg, #2ed573 0%, #26af5f 100%);
+      color: #fff;
+      grid-column: span 2;
+    }
     .category-add-box { display: flex; gap: 8px; margin-bottom: 15px; }
     .category-add-box input { margin-bottom: 0; flex-grow: 1; }
     .category-add-box button {
@@ -760,7 +819,10 @@
       <select id="category" onchange="renderQuickCategoryButtons()"></select>
       <div class="quick-category-buttons" id="quickCategoryButtons"></div>
 
-      <label>金額（円）</label>
+      <div class="label-container">
+        <label>金額（円）</label>
+        <button type="button" class="btn-calc" onclick="openCalculator('amount')">🧮 電卓</button>
+      </div>
       <input type="number" id="amount" placeholder="例: 3000">
 
       <label>詳細・メモ（任意）</label>
@@ -894,7 +956,10 @@
         <label>項目（カテゴリー）</label>
         <select id="editCategory"></select>
 
-        <label>金額（円）</label>
+        <div class="label-container">
+          <label>金額（円）</label>
+          <button type="button" class="btn-calc" onclick="openCalculator('editAmount')">🧮 電卓</button>
+        </div>
         <input type="number" id="editAmount">
 
         <label>詳細・メモ（任意）</label>
@@ -967,7 +1032,10 @@
         <label>項目（カテゴリー）</label>
         <select id="tmplUseCategory"></select>
 
-        <label>金額（円）</label>
+        <div class="label-container">
+          <label>金額（円）</label>
+          <button type="button" class="btn-calc" onclick="openCalculator('tmplUseAmount')">🧮 電卓</button>
+        </div>
         <input type="number" id="tmplUseAmount">
 
         <label>詳細・メモ（任意）</label>
@@ -1024,7 +1092,10 @@
         <label>項目（カテゴリー）</label>
         <select id="tmplCategory"></select>
 
-        <label>目安の金額（円）</label>
+        <div class="label-container">
+          <label>目安の金額（円）</label>
+          <button type="button" class="btn-calc" onclick="openCalculator('tmplAmount')">🧮 電卓</button>
+        </div>
         <input type="number" id="tmplAmount" placeholder="例: 80000（毎回変わる場合は空欄可）">
 
         <label>詳細・メモ（任意）</label>
@@ -1085,7 +1156,10 @@
         <label>項目（カテゴリー）</label>
         <select id="tmplEditCategory"></select>
 
-        <label>目安の金額（円）</label>
+        <div class="label-container">
+          <label>目安の金額（円）</label>
+          <button type="button" class="btn-calc" onclick="openCalculator('tmplEditAmount')">🧮 電卓</button>
+        </div>
         <input type="number" id="tmplEditAmount" placeholder="例: 80000（毎回変わる場合は空欄可）">
 
         <label>詳細・メモ（任意）</label>
@@ -1118,6 +1192,43 @@
 
         <button class="btn-submit" onclick="saveEditedTemplate()" style="margin-top: 10px;">テンプレートを変更する</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 電卓モーダル -->
+  <div class="modal-overlay" id="calcModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🧮 電卓</h3>
+        <button class="btn-close" onclick="closeCalculator()">✕</button>
+      </div>
+      <div class="calc-display" id="calcDisplay">0</div>
+      <div class="calc-keypad">
+        <button type="button" class="calc-key clear" onclick="calcClear()">AC</button>
+        <button type="button" class="calc-key clear" onclick="calcBackspace()">⌫</button>
+        <button type="button" class="calc-key op" onclick="calcInput('%')">%</button>
+        <button type="button" class="calc-key op" onclick="calcInput('/')">÷</button>
+
+        <button type="button" class="calc-key" onclick="calcInput('7')">7</button>
+        <button type="button" class="calc-key" onclick="calcInput('8')">8</button>
+        <button type="button" class="calc-key" onclick="calcInput('9')">9</button>
+        <button type="button" class="calc-key op" onclick="calcInput('*')">×</button>
+
+        <button type="button" class="calc-key" onclick="calcInput('4')">4</button>
+        <button type="button" class="calc-key" onclick="calcInput('5')">5</button>
+        <button type="button" class="calc-key" onclick="calcInput('6')">6</button>
+        <button type="button" class="calc-key op" onclick="calcInput('-')">−</button>
+
+        <button type="button" class="calc-key" onclick="calcInput('1')">1</button>
+        <button type="button" class="calc-key" onclick="calcInput('2')">2</button>
+        <button type="button" class="calc-key" onclick="calcInput('3')">3</button>
+        <button type="button" class="calc-key op" onclick="calcInput('+')">+</button>
+
+        <button type="button" class="calc-key" onclick="calcInput('0')" style="grid-column: span 2;">0</button>
+        <button type="button" class="calc-key" onclick="calcInput('.')">.</button>
+        <button type="button" class="calc-key equal" onclick="calcEqual()" style="grid-column: span 1;">=</button>
+      </div>
+      <button class="btn-submit" onclick="calcApply()">この金額を入力欄へ反映</button>
     </div>
   </div>
 
@@ -1154,6 +1265,90 @@
     let isTmplCustomRatio = false;
     let isTmplUseCustomRatio = false;
     let isTmplEditCustomRatio = false;
+
+    // 電卓関連の状態管理
+    let calcTargetInputId = null;
+    let calcExpression = '';
+
+    function openCalculator(targetInputId) {
+      calcTargetInputId = targetInputId;
+      const currentVal = document.getElementById(targetInputId).value;
+      calcExpression = currentVal ? String(currentVal) : '';
+      calcUpdateDisplay();
+      document.getElementById('calcModal').classList.add('open');
+    }
+
+    function closeCalculator() {
+      document.getElementById('calcModal').classList.remove('open');
+    }
+
+    function calcUpdateDisplay() {
+      const display = document.getElementById('calcDisplay');
+      display.textContent = calcExpression === '' ? '0' : calcExpression.replace(/\*/g, '×').replace(/\//g, '÷');
+    }
+
+    function calcInput(value) {
+      // 演算子が連続しないようにする
+      const operators = ['+', '-', '*', '/', '%'];
+      if (operators.includes(value)) {
+        if (calcExpression === '' && value !== '-') return;
+        if (operators.includes(calcExpression.slice(-1))) {
+          calcExpression = calcExpression.slice(0, -1) + value;
+          calcUpdateDisplay();
+          return;
+        }
+      }
+      calcExpression += value;
+      calcUpdateDisplay();
+    }
+
+    function calcBackspace() {
+      calcExpression = calcExpression.slice(0, -1);
+      calcUpdateDisplay();
+    }
+
+    function calcClear() {
+      calcExpression = '';
+      calcUpdateDisplay();
+    }
+
+    function calcEvaluate() {
+      if (!calcExpression) return 0;
+      // 数字・演算子・小数点・括弧・空白以外を許可しない安全なチェック
+      if (!/^[0-9+\-*/.%()\s]+$/.test(calcExpression)) return null;
+      try {
+        // eslint-disable-next-line no-new-func
+        const result = Function('"use strict"; return (' + calcExpression + ')')();
+        if (typeof result !== 'number' || !isFinite(result)) return null;
+        return result;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    function calcEqual() {
+      const result = calcEvaluate();
+      if (result === null) {
+        calcExpression = '';
+        document.getElementById('calcDisplay').textContent = 'エラー';
+        return;
+      }
+      calcExpression = String(Math.round(result * 100) / 100);
+      calcUpdateDisplay();
+    }
+
+    function calcApply() {
+      const result = calcEvaluate();
+      if (result === null) {
+        alert('計算式が正しくありません');
+        return;
+      }
+      const roundedResult = Math.round(result);
+      if (calcTargetInputId) {
+        document.getElementById(calcTargetInputId).value = roundedResult;
+      }
+      closeCalculator();
+    }
 
     // デフォルト日付セット
     function setDefaultDate() {
