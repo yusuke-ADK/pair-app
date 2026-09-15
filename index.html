@@ -3255,7 +3255,7 @@
         li.innerHTML = `
           <div class="item-info">
             <div class="item-title">${t.title} - ${t.amount.toLocaleString()}円</div>
-            <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText}) / ${payText}${personalTag}</div>
+            <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText})${personalTag} / ${payText}</div>
           </div>
           <div class="btn-action-group">
             <button class="btn-edit" onclick="openEditModal('${t.id}')">編集</button>
