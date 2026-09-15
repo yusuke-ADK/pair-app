@@ -427,6 +427,51 @@
     .custom-ratio-inputs input { margin-bottom: 0; width: 64px; text-align: center; font-size: 1.1em; font-weight: bold; }
     .custom-ratio-inputs span { font-weight: bold; color: var(--text-sub); font-size: 0.9em; }
 
+    /* 個人分（立替の中の自己負担分）エリア */
+    .personal-area { margin-top: 2px; margin-bottom: 14px; }
+    .personal-toggle-btn { font-size: 0.78em; color: var(--text-sub); }
+    .personal-body { margin-top: 10px; }
+    .personal-list { display: flex; flex-direction: column; gap: 10px; }
+    .personal-item-row {
+      background: rgba(241, 243, 246, 0.8);
+      border: 1px solid rgba(0,0,0,0.04);
+      border-radius: var(--radius-sm);
+      padding: 10px 10px 8px 10px;
+    }
+    .personal-item-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+    .personal-owner-toggle { display: flex; gap: 6px; }
+    .personal-owner-btn {
+      padding: 5px 10px;
+      border-radius: 20px;
+      border: 1px solid var(--card-border);
+      background: #fff;
+      font-size: 0.76em;
+      font-weight: bold;
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.15s var(--ease-out);
+    }
+    .personal-owner-btn.active { background: var(--accent-color); color: #fff; border-color: var(--accent-color); }
+    .personal-owner-btn:active { transform: scale(0.95); }
+    .personal-remove-btn {
+      background: none;
+      border: none;
+      color: var(--danger-color);
+      font-size: 1em;
+      line-height: 1;
+      cursor: pointer;
+      padding: 4px 6px;
+      opacity: 0.75;
+    }
+    .personal-remove-btn:active { transform: scale(0.9); }
+    .personal-item-mid { display: flex; gap: 6px; }
+    .personal-amount-input { flex: 1; min-width: 0; margin-bottom: 0 !important; }
+    .personal-tax-select { width: auto; flex-shrink: 0; min-width: 92px; margin-bottom: 0 !important; font-size: 0.8em; padding: 8px 6px !important; }
+    .personal-incl-note { font-size: 0.74em; color: var(--text-sub); margin-top: 4px; min-height: 1.1em; }
+    .personal-memo-input { margin-top: 6px; margin-bottom: 0 !important; font-size: 0.85em; padding: 9px 12px !important; }
+    .personal-add-btn { margin-top: 10px; font-size: 0.8em; }
+    .personal-summary { text-align: right; font-size: 0.82em; color: var(--primary-color); font-weight: bold; margin-top: 10px; }
+
     /* 並べ替えコントロール */
     .sort-controls {
       display: flex;
@@ -823,10 +868,19 @@
         <label>金額（円）</label>
         <button type="button" class="btn-calc" onclick="openCalculator('amount')">🧮 電卓</button>
       </div>
-      <input type="number" id="amount" placeholder="例: 3000">
+      <input type="number" id="amount" placeholder="例: 3000" oninput="updatePersonalSummary('')">
 
       <label>詳細・メモ（任意）</label>
       <input type="text" id="title" placeholder="例: スーパーでの買い物">
+
+      <div class="personal-area">
+        <button type="button" class="btn-link personal-toggle-btn" id="personalToggleBtn" onclick="togglePersonalArea('')">＋ 個人分を差し引く</button>
+        <div class="personal-body" id="personalBody" style="display: none;">
+          <div class="personal-list" id="personalList"></div>
+          <button type="button" class="btn-link personal-add-btn" onclick="addPersonalItemRow('')">＋ 行を追加</button>
+          <div class="personal-summary" id="personalSummary"></div>
+        </div>
+      </div>
 
       <div id="simpleSplitArea">
         <label>割り方</label>
@@ -960,10 +1014,19 @@
           <label>金額（円）</label>
           <button type="button" class="btn-calc" onclick="openCalculator('editAmount')">🧮 電卓</button>
         </div>
-        <input type="number" id="editAmount">
+        <input type="number" id="editAmount" oninput="updatePersonalSummary('edit')">
 
         <label>詳細・メモ（任意）</label>
         <input type="text" id="editMemo" placeholder="例: スーパーでの買い物">
+
+        <div class="personal-area">
+          <button type="button" class="btn-link personal-toggle-btn" id="editPersonalToggleBtn" onclick="togglePersonalArea('edit')">＋ 個人分を差し引く</button>
+          <div class="personal-body" id="editPersonalBody" style="display: none;">
+            <div class="personal-list" id="editPersonalList"></div>
+            <button type="button" class="btn-link personal-add-btn" onclick="addPersonalItemRow('edit')">＋ 行を追加</button>
+            <div class="personal-summary" id="editPersonalSummary"></div>
+          </div>
+        </div>
 
         <div id="editSimpleSplitArea">
           <label>割り方</label>
@@ -1036,10 +1099,19 @@
           <label>金額（円）</label>
           <button type="button" class="btn-calc" onclick="openCalculator('tmplUseAmount')">🧮 電卓</button>
         </div>
-        <input type="number" id="tmplUseAmount">
+        <input type="number" id="tmplUseAmount" oninput="updatePersonalSummary('tmplUse')">
 
         <label>詳細・メモ（任意）</label>
         <input type="text" id="tmplUseMemo" placeholder="例: 今月分の電気代">
+
+        <div class="personal-area">
+          <button type="button" class="btn-link personal-toggle-btn" id="tmplUsePersonalToggleBtn" onclick="togglePersonalArea('tmplUse')">＋ 個人分を差し引く</button>
+          <div class="personal-body" id="tmplUsePersonalBody" style="display: none;">
+            <div class="personal-list" id="tmplUsePersonalList"></div>
+            <button type="button" class="btn-link personal-add-btn" onclick="addPersonalItemRow('tmplUse')">＋ 行を追加</button>
+            <div class="personal-summary" id="tmplUsePersonalSummary"></div>
+          </div>
+        </div>
 
         <div id="tmplUseSimpleSplitArea">
           <label>割り方</label>
@@ -1096,10 +1168,19 @@
           <label>目安の金額（円）</label>
           <button type="button" class="btn-calc" onclick="openCalculator('tmplAmount')">🧮 電卓</button>
         </div>
-        <input type="number" id="tmplAmount" placeholder="例: 80000（毎回変わる場合は空欄可）">
+        <input type="number" id="tmplAmount" placeholder="例: 80000（毎回変わる場合は空欄可）" oninput="updatePersonalSummary('tmpl')">
 
         <label>詳細・メモ（任意）</label>
         <input type="text" id="tmplMemo" placeholder="例: 電気代・ガス代">
+
+        <div class="personal-area">
+          <button type="button" class="btn-link personal-toggle-btn" id="tmplPersonalToggleBtn" onclick="togglePersonalArea('tmpl')">＋ 個人分を差し引く</button>
+          <div class="personal-body" id="tmplPersonalBody" style="display: none;">
+            <div class="personal-list" id="tmplPersonalList"></div>
+            <button type="button" class="btn-link personal-add-btn" onclick="addPersonalItemRow('tmpl')">＋ 行を追加</button>
+            <div class="personal-summary" id="tmplPersonalSummary"></div>
+          </div>
+        </div>
 
         <div id="tmplSimpleSplitArea">
           <label>割り方</label>
@@ -1160,10 +1241,19 @@
           <label>目安の金額（円）</label>
           <button type="button" class="btn-calc" onclick="openCalculator('tmplEditAmount')">🧮 電卓</button>
         </div>
-        <input type="number" id="tmplEditAmount" placeholder="例: 80000（毎回変わる場合は空欄可）">
+        <input type="number" id="tmplEditAmount" placeholder="例: 80000（毎回変わる場合は空欄可）" oninput="updatePersonalSummary('tmplEdit')">
 
         <label>詳細・メモ（任意）</label>
         <input type="text" id="tmplEditMemo" placeholder="例: 電気代・ガス代">
+
+        <div class="personal-area">
+          <button type="button" class="btn-link personal-toggle-btn" id="tmplEditPersonalToggleBtn" onclick="togglePersonalArea('tmplEdit')">＋ 個人分を差し引く</button>
+          <div class="personal-body" id="tmplEditPersonalBody" style="display: none;">
+            <div class="personal-list" id="tmplEditPersonalList"></div>
+            <button type="button" class="btn-link personal-add-btn" onclick="addPersonalItemRow('tmplEdit')">＋ 行を追加</button>
+            <div class="personal-summary" id="tmplEditPersonalSummary"></div>
+          </div>
+        </div>
 
         <div id="tmplEditSimpleSplitArea">
           <label>割り方</label>
@@ -1269,6 +1359,266 @@
     // 電卓関連の状態管理
     let calcTargetInputId = null;
     let calcExpression = '';
+    const amountFieldPrefixMap = { amount: '', editAmount: 'edit', tmplAmount: 'tmpl', tmplUseAmount: 'tmplUse', tmplEditAmount: 'tmplEdit' };
+
+    /* ================= 個人分（立替の中の自己負担分）関連 ================= */
+    let personalItemsState = { '': [], edit: [], tmpl: [], tmplUse: [], tmplEdit: [] };
+    let personalAreaOpen = { '': false, edit: false, tmpl: false, tmplUse: false, tmplEdit: false };
+    let personalRowSeq = 0;
+
+    function personalAreaKey(prefix) { return prefix || ''; }
+    function personalBase(prefix) { return prefix ? `${prefix}Personal` : 'personal'; }
+    function amountInputIdForPrefix(prefix) { return prefix ? `${prefix}Amount` : 'amount'; }
+
+    function escapeAttr(str) {
+      return String(str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function calcAmountIncl(amount, taxMode) {
+      const n = Number(amount) || 0;
+      if (taxMode === 'EX8') return Math.floor(n * 1.08);
+      if (taxMode === 'EX10') return Math.floor(n * 1.10);
+      return n;
+    }
+
+    function togglePersonalArea(prefix) {
+      const key = personalAreaKey(prefix);
+      personalAreaOpen[key] = !personalAreaOpen[key];
+      if (personalAreaOpen[key] && personalItemsState[key].length === 0) {
+        addPersonalItemRow(prefix);
+        return; // addPersonalItemRow already renders
+      }
+      renderPersonalArea(prefix);
+    }
+
+    function addPersonalItemRow(prefix) {
+      const key = personalAreaKey(prefix);
+      const rows = personalItemsState[key];
+      const lastMode = rows.length > 0 ? rows[rows.length - 1].taxMode : 'IN';
+      personalRowSeq += 1;
+      rows.push({ rowId: 'p' + personalRowSeq, owner: 'ゆうすけ', amount: '', taxMode: lastMode, memo: '' });
+      personalAreaOpen[key] = true;
+      renderPersonalArea(prefix);
+    }
+
+    function removePersonalItemRow(prefix, rowId) {
+      const key = personalAreaKey(prefix);
+      personalItemsState[key] = personalItemsState[key].filter(r => r.rowId !== rowId);
+      renderPersonalArea(prefix);
+    }
+
+    function setPersonalOwner(prefix, rowId, owner) {
+      const key = personalAreaKey(prefix);
+      const row = personalItemsState[key].find(r => r.rowId === rowId);
+      if (!row) return;
+      row.owner = owner;
+      renderPersonalArea(prefix);
+    }
+
+    function onPersonalAmountInput(prefix, rowId, value) {
+      const key = personalAreaKey(prefix);
+      const row = personalItemsState[key].find(r => r.rowId === rowId);
+      if (!row) return;
+      row.amount = value;
+      updatePersonalInclNote(prefix, row);
+      updatePersonalSummary(prefix);
+    }
+
+    function onPersonalTaxInput(prefix, rowId, value) {
+      const key = personalAreaKey(prefix);
+      const row = personalItemsState[key].find(r => r.rowId === rowId);
+      if (!row) return;
+      row.taxMode = value;
+      updatePersonalInclNote(prefix, row);
+      updatePersonalSummary(prefix);
+    }
+
+    function onPersonalMemoInput(prefix, rowId, value) {
+      const key = personalAreaKey(prefix);
+      const row = personalItemsState[key].find(r => r.rowId === rowId);
+      if (row) row.memo = value;
+    }
+
+    function updatePersonalInclNote(prefix, row) {
+      const base = personalBase(prefix);
+      const noteEl = document.getElementById(`${base}InclNote_${row.rowId}`);
+      if (!noteEl) return;
+      if (row.taxMode === 'IN') {
+        noteEl.textContent = '';
+      } else {
+        const incl = calcAmountIncl(row.amount, row.taxMode);
+        noteEl.textContent = `→ 税込 ${incl.toLocaleString()}円換算`;
+      }
+    }
+
+    function getPersonalItemsTotalIncl(prefix) {
+      const key = personalAreaKey(prefix);
+      return personalItemsState[key].reduce((sum, row) => sum + calcAmountIncl(row.amount, row.taxMode), 0);
+    }
+
+    function updatePersonalSummary(prefix) {
+      const key = personalAreaKey(prefix);
+      const base = personalBase(prefix);
+      const summaryEl = document.getElementById(`${base}Summary`);
+      if (!summaryEl) return;
+      const items = personalItemsState[key];
+      if (items.length === 0) {
+        summaryEl.textContent = '';
+        return;
+      }
+      const amountEl = document.getElementById(amountInputIdForPrefix(prefix));
+      const totalAmount = amountEl ? (Number(amountEl.value) || 0) : 0;
+      const personalTotal = getPersonalItemsTotalIncl(prefix);
+      const shared = totalAmount - personalTotal;
+      summaryEl.textContent = `折半対象：${Math.max(0, shared).toLocaleString()}円` + (shared < 0 ? '（金額を超えています）' : '');
+      summaryEl.style.color = shared < 0 ? 'var(--danger-color)' : 'var(--primary-color)';
+    }
+
+    function personalRowHtml(prefix, row) {
+      const base = personalBase(prefix);
+      const incl = calcAmountIncl(row.amount, row.taxMode);
+      const inclText = row.taxMode === 'IN' ? '' : `→ 税込 ${incl.toLocaleString()}円換算`;
+      return `
+        <div class="personal-item-row">
+          <div class="personal-item-top">
+            <div class="personal-owner-toggle">
+              <button type="button" class="personal-owner-btn ${row.owner === 'ゆうすけ' ? 'active' : ''}" onclick="setPersonalOwner('${prefix}','${row.rowId}','ゆうすけ')">ゆうすけ</button>
+              <button type="button" class="personal-owner-btn ${row.owner === 'うらら' ? 'active' : ''}" onclick="setPersonalOwner('${prefix}','${row.rowId}','うらら')">うらら</button>
+            </div>
+            <button type="button" class="personal-remove-btn" onclick="removePersonalItemRow('${prefix}','${row.rowId}')" aria-label="この行を削除">✕</button>
+          </div>
+          <div class="personal-item-mid">
+            <input type="number" class="personal-amount-input" placeholder="金額" value="${row.amount}" oninput="onPersonalAmountInput('${prefix}','${row.rowId}', this.value)">
+            <select class="personal-tax-select" onchange="onPersonalTaxInput('${prefix}','${row.rowId}', this.value)">
+              <option value="IN" ${row.taxMode === 'IN' ? 'selected' : ''}>税込</option>
+              <option value="EX8" ${row.taxMode === 'EX8' ? 'selected' : ''}>税抜8%</option>
+              <option value="EX10" ${row.taxMode === 'EX10' ? 'selected' : ''}>税抜10%</option>
+            </select>
+          </div>
+          <div class="personal-incl-note" id="${base}InclNote_${row.rowId}">${inclText}</div>
+          <input type="text" class="personal-memo-input" placeholder="メモ（任意・例：ポテチ）" value="${escapeAttr(row.memo)}" oninput="onPersonalMemoInput('${prefix}','${row.rowId}', this.value)">
+        </div>
+      `;
+    }
+
+    function renderPersonalArea(prefix) {
+      const key = personalAreaKey(prefix);
+      const base = personalBase(prefix);
+      const body = document.getElementById(`${base}Body`);
+      const listEl = document.getElementById(`${base}List`);
+      const btn = document.getElementById(`${base}ToggleBtn`);
+      if (!body || !listEl) return;
+      const isOpen = personalAreaOpen[key];
+      body.style.display = isOpen ? 'block' : 'none';
+      if (btn) btn.textContent = isOpen ? 'ー 個人分を閉じる' : '＋ 個人分を差し引く';
+      listEl.innerHTML = personalItemsState[key].map(row => personalRowHtml(prefix, row)).join('');
+      updatePersonalSummary(prefix);
+    }
+
+    function resetPersonalArea(prefix) {
+      const key = personalAreaKey(prefix);
+      personalItemsState[key] = [];
+      personalAreaOpen[key] = false;
+      renderPersonalArea(prefix);
+    }
+
+    function loadPersonalItemsIntoForm(prefix, items) {
+      const key = personalAreaKey(prefix);
+      const list = Array.isArray(items) ? items : [];
+      personalItemsState[key] = list.map(item => {
+        personalRowSeq += 1;
+        return {
+          rowId: 'p' + personalRowSeq,
+          owner: item.owner === 'うらら' ? 'うらら' : 'ゆうすけ',
+          amount: item.amount !== undefined ? item.amount : '',
+          taxMode: item.taxMode || 'IN',
+          memo: item.memo || ''
+        };
+      });
+      personalAreaOpen[key] = list.length > 0;
+      renderPersonalArea(prefix);
+    }
+
+    function getPersonalItemsForSave(prefix) {
+      const key = personalAreaKey(prefix);
+      return personalItemsState[key]
+        .map(row => {
+          const amount = Number(row.amount) || 0;
+          return {
+            owner: row.owner,
+            amount,
+            taxMode: row.taxMode,
+            amountIncl: calcAmountIncl(amount, row.taxMode),
+            memo: row.memo || ''
+          };
+        })
+        .filter(row => row.amount > 0);
+    }
+
+    // 個人分の合計が金額を超えていないかチェックする。問題があれば null を返す（呼び出し側で早期returnする）
+    function validatePersonalItems(prefix, amount) {
+      const items = getPersonalItemsForSave(prefix);
+      const total = items.reduce((sum, i) => sum + i.amountIncl, 0);
+      if (amount > 0 && total > amount) {
+        alert(`個人分の合計（${total.toLocaleString()}円）が金額（${amount.toLocaleString()}円）を超えています。`);
+        return null;
+      }
+      return items;
+    }
+
+    /* ---- 精算計算の共通ロジック ---- */
+    function getSplitRatios(t) {
+      let yRatio = 1, uRatio = 1;
+      if (t.splitType === 'CUSTOM') {
+        yRatio = t.ratioY !== undefined ? t.ratioY : 1;
+        uRatio = t.ratioU !== undefined ? t.ratioU : 1;
+      } else if (t.splitType === 'PAY_ALL') {
+        if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
+        else { yRatio = 1; uRatio = 0; }
+      } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
+        const parts = t.splitType.split('_');
+        yRatio = parseInt(parts[1], 10);
+        uRatio = parseInt(parts[2], 10);
+      }
+      return { yRatio, uRatio };
+    }
+
+    function getPersonalTotals(t) {
+      const list = t.personalItems || [];
+      let pY = 0, pU = 0;
+      list.forEach(p => {
+        const incl = p.amountIncl !== undefined ? p.amountIncl : (Number(p.amount) || 0);
+        if (p.owner === 'ゆうすけ') pY += incl;
+        else if (p.owner === 'うらら') pU += incl;
+      });
+      return { pY, pU };
+    }
+
+    // 記録1件の精算結果を計算する。amt は「支払っていない側が払う側へ渡す金額」
+    function calcSettlement(t) {
+      const { yRatio, uRatio } = getSplitRatios(t);
+      const { pY, pU } = getPersonalTotals(t);
+      const totalRatio = yRatio + uRatio;
+      const shared = Math.max(0, (t.amount || 0) - pY - pU);
+      let amt = 0;
+      if (t.payer === 'ゆうすけ') {
+        amt = (totalRatio > 0 ? Math.round(shared * uRatio / totalRatio) : 0) + pU;
+      } else if (t.payer === 'うらら') {
+        amt = (totalRatio > 0 ? Math.round(shared * yRatio / totalRatio) : 0) + pY;
+      }
+      return { yRatio, uRatio, totalRatio, pY, pU, shared, amt };
+    }
+
+    function getPersonalSummaryText(t) {
+      const list = t.personalItems || [];
+      if (!list.length) return '';
+      const parts = list.map(p => {
+        const incl = p.amountIncl !== undefined ? p.amountIncl : (Number(p.amount) || 0);
+        const ownerShort = p.owner === 'うらら' ? 'う' : 'ゆ';
+        return `${ownerShort}${incl.toLocaleString()}${p.memo ? '(' + p.memo + ')' : ''}`;
+      });
+      return `個人 ${parts.join('・')}`;
+    }
 
     function openCalculator(targetInputId) {
       calcTargetInputId = targetInputId;
@@ -1346,6 +1696,9 @@
       const roundedResult = Math.round(result);
       if (calcTargetInputId) {
         document.getElementById(calcTargetInputId).value = roundedResult;
+        if (calcTargetInputId in amountFieldPrefixMap) {
+          updatePersonalSummary(amountFieldPrefixMap[calcTargetInputId]);
+        }
       }
       closeCalculator();
     }
@@ -2197,36 +2550,28 @@
       if (!dateVal) return alert('発生日を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
+      const personalItems = validatePersonalItems('', amount);
+      if (personalItems === null) return;
+
       const formattedDate = dateVal.replace(/-/g, '/');
 
       await db.collection('transactions').add({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
         date: formattedDate, rawDate: dateVal, createdAt: Date.now()
       });
 
       // どっちがどっちに支払うことになるか計算
-      let calcYRatio = 1, calcURatio = 1;
-      if (splitType === 'CUSTOM') {
-        calcYRatio = ratioY;
-        calcURatio = ratioU;
-      } else if (splitType === 'PAY_ALL') {
-        if (payer === 'ゆうすけ') { calcYRatio = 0; calcURatio = 1; }
-        else { calcYRatio = 1; calcURatio = 0; }
-      }
+      const settlement = calcSettlement({ amount, payer, splitType, ratioY, ratioU, personalItems });
 
       let payText = '';
-      const totalRatio = calcYRatio + calcURatio;
-      if (totalRatio > 0) {
-        if (payer === 'ゆうすけ') {
-          const amt = Math.round((amount * calcURatio) / totalRatio);
-          payText = amt > 0 ? `うらら ➔ ゆうすけ ${amt.toLocaleString()}円` : '支払いなし（0円）';
-        } else if (payer === 'うらら') {
-          const amt = Math.round((amount * calcYRatio) / totalRatio);
-          payText = amt > 0 ? `ゆうすけ ➔ うらら ${amt.toLocaleString()}円` : '支払いなし（0円）';
-        }
+      if (payer === 'ゆうすけ') {
+        payText = settlement.amt > 0 ? `うらら ➔ ゆうすけ ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
+      } else if (payer === 'うらら') {
+        payText = settlement.amt > 0 ? `ゆうすけ ➔ うらら ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
       }
 
       const ratioText = getRatioDisplayText(splitType, ratioY, ratioU);
+      const personalText = personalItems.length > 0 ? `\n🛒 ${getPersonalSummaryText({ personalItems })}` : '';
 
       alert(
         `💲記録完了💲\n\n` +
@@ -2235,7 +2580,7 @@
         `🏷️ カテゴリ：${category}\n` +
         `💰 金額：${amount.toLocaleString()}円\n` +
         `📝 詳細メモ：${memo || '（なし）'}\n` +
-        `⚖️ 割り方：${ratioText}\n` +
+        `⚖️ 割り方：${ratioText}${personalText}\n` +
         `🔄 精算内容：${payText}`
       );
 
@@ -2252,6 +2597,7 @@
       document.getElementById('ratioYusuke').value = '1';
       document.getElementById('ratioUrara').value = '1';
       document.getElementById('payerYusuke').checked = true;
+      resetPersonalArea('');
     }
 
     /* 編集モーダル */
@@ -2284,6 +2630,8 @@
       document.getElementById('editCustomSplitArea').style.display = isEditCustomRatio ? 'block' : 'none';
       document.getElementById('editToggleRatioBtn').textContent = isEditCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
 
+      loadPersonalItemsIntoForm('edit', item.personalItems);
+
       document.getElementById('editModal').classList.add('open');
     }
 
@@ -2313,11 +2661,14 @@
       if (!dateVal) return alert('発生日を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
+      const personalItems = validatePersonalItems('edit', amount);
+      if (personalItems === null) return;
+
       const formattedDate = dateVal.replace(/-/g, '/');
       const title = memo ? `${category}（${memo}）` : category;
 
       await db.collection('transactions').doc(id).update({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
         date: formattedDate, rawDate: dateVal
       });
 
@@ -2340,6 +2691,7 @@
     }
     function openTemplateManageModal() {
       renderTemplateManageList();
+      resetPersonalArea('tmpl');
       document.getElementById('templateManageModal').classList.add('open');
     }
     function closeTemplateManageModal() {
@@ -2363,10 +2715,11 @@
         const li = document.createElement('li');
         const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
         const amtText = item.amount ? `${item.amount.toLocaleString()}円` : '金額未定';
+        const personalTag = (item.personalItems && item.personalItems.length > 0) ? ' / 🛒個人分あり' : '';
         li.innerHTML = `
           <div class="item-info">
             <div class="item-title">${item.title} (${amtText})</div>
-            <div class="item-sub">${item.payer}が支払い / ${typeText}</div>
+            <div class="item-sub">${item.payer}が支払い / ${typeText}${personalTag}</div>
           </div>
           <button class="btn-select-tmpl" onclick="selectTemplateToUse('${item.id}')">選択</button>
         `;
@@ -2407,6 +2760,8 @@
       document.getElementById('tmplUseCustomSplitArea').style.display = isTmplUseCustomRatio ? 'block' : 'none';
       document.getElementById('tmplUseToggleRatioBtn').textContent = isTmplUseCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
 
+      loadPersonalItemsIntoForm('tmplUse', item.personalItems);
+
       document.getElementById('templateUseModal').classList.add('open');
     }
 
@@ -2431,36 +2786,28 @@
       if (!dateVal) return alert('発生日を選択してください');
       if (!amount || amount <= 0) return alert('正しい金額を入力してください');
 
+      const personalItems = validatePersonalItems('tmplUse', amount);
+      if (personalItems === null) return;
+
       const formattedDate = dateVal.replace(/-/g, '/');
 
       await db.collection('transactions').add({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
         date: formattedDate, rawDate: dateVal, createdAt: Date.now()
       });
 
       // どっちがどっちに支払うことになるか計算
-      let calcYRatio = 1, calcURatio = 1;
-      if (splitType === 'CUSTOM') {
-        calcYRatio = ratioY;
-        calcURatio = ratioU;
-      } else if (splitType === 'PAY_ALL') {
-        if (payer === 'ゆうすけ') { calcYRatio = 0; calcURatio = 1; }
-        else { calcYRatio = 1; calcURatio = 0; }
-      }
+      const settlement = calcSettlement({ amount, payer, splitType, ratioY, ratioU, personalItems });
 
       let payText = '';
-      const totalRatio = calcYRatio + calcURatio;
-      if (totalRatio > 0) {
-        if (payer === 'ゆうすけ') {
-          const amt = Math.round((amount * calcURatio) / totalRatio);
-          payText = amt > 0 ? `うらら ➔ ゆうすけ ${amt.toLocaleString()}円` : '支払いなし（0円）';
-        } else if (payer === 'うらら') {
-          const amt = Math.round((amount * calcYRatio) / totalRatio);
-          payText = amt > 0 ? `ゆうすけ ➔ うらら ${amt.toLocaleString()}円` : '支払いなし（0円）';
-        }
+      if (payer === 'ゆうすけ') {
+        payText = settlement.amt > 0 ? `うらら ➔ ゆうすけ ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
+      } else if (payer === 'うらら') {
+        payText = settlement.amt > 0 ? `ゆうすけ ➔ うらら ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
       }
 
       const ratioText = getRatioDisplayText(splitType, ratioY, ratioU);
+      const personalText = personalItems.length > 0 ? `\n🛒 ${getPersonalSummaryText({ personalItems })}` : '';
 
       alert(
         `💲記録完了💲\n\n` +
@@ -2469,10 +2816,11 @@
         `🏷️ カテゴリ：${category}\n` +
         `💰 金額：${amount.toLocaleString()}円\n` +
         `📝 詳細メモ：${memo || '（なし）'}\n` +
-        `⚖️ 割り方：${ratioText}\n` +
+        `⚖️ 割り方：${ratioText}${personalText}\n` +
         `🔄 精算内容：${payText}`
       );
 
+      resetPersonalArea('tmplUse');
       closeTemplateUseModal();
     }
 
@@ -2487,11 +2835,12 @@
         const li = document.createElement('li');
         const typeText = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
         const amtText = item.amount ? `${item.amount.toLocaleString()}円` : '金額未定';
+        const personalTag = (item.personalItems && item.personalItems.length > 0) ? ' / 🛒個人分あり' : '';
         li.innerHTML = `
           <span class="drag-handle">☰</span>
           <div class="item-info">
             <div class="item-title">${item.title} (${amtText})</div>
-            <div class="item-sub">${item.payer}が支払い / ${typeText}</div>
+            <div class="item-sub">${item.payer}が支払い / ${typeText}${personalTag}</div>
           </div>
           <div class="btn-action-group">
             <button class="btn-edit" onclick="openTemplateEditModal('${item.id}')">編集</button>
@@ -2533,15 +2882,22 @@
         splitType = getSplitTypeValue('tmpl');
       }
 
+      const personalItems = getPersonalItemsForSave('tmpl');
+      const personalTotal = personalItems.reduce((sum, i) => sum + i.amountIncl, 0);
+      if (amount > 0 && personalTotal > amount) {
+        return alert(`個人分の合計（${personalTotal.toLocaleString()}円）が目安の金額（${amount.toLocaleString()}円）を超えています。`);
+      }
+
       const nextOrder = templates.length > 0 ? (templates[templates.length - 1].order ?? Date.now()) + 1 : Date.now();
 
       await db.collection('fixedCosts').add({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU,
+        payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
         createdAt: Date.now(), order: nextOrder
       });
 
       document.getElementById('tmplAmount').value = '';
       document.getElementById('tmplMemo').value = '';
+      resetPersonalArea('tmpl');
     }
 
     function openTemplateEditModal(id) {
@@ -2571,6 +2927,8 @@
       document.getElementById('tmplEditCustomSplitArea').style.display = isTmplEditCustomRatio ? 'block' : 'none';
       document.getElementById('tmplEditToggleRatioBtn').textContent = isTmplEditCustomRatio ? 'ー シンプルに戻す' : '＋ 割合を細かく設定';
 
+      loadPersonalItemsIntoForm('tmplEdit', item.personalItems);
+
       document.getElementById('templateEditModal').classList.add('open');
     }
 
@@ -2592,8 +2950,14 @@
         splitType = getSplitTypeValue('tmplEdit');
       }
 
+      const personalItems = getPersonalItemsForSave('tmplEdit');
+      const personalTotal = personalItems.reduce((sum, i) => sum + i.amountIncl, 0);
+      if (amount > 0 && personalTotal > amount) {
+        return alert(`個人分の合計（${personalTotal.toLocaleString()}円）が目安の金額（${amount.toLocaleString()}円）を超えています。`);
+      }
+
       await db.collection('fixedCosts').doc(id).update({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU
+        payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems
       });
 
       closeTemplateEditModal();
@@ -2638,26 +3002,11 @@
 
         transactions.forEach((t) => {
           totalAmount += t.amount;
-          let yRatio = 1, uRatio = 1;
-          if (t.splitType === 'CUSTOM') {
-            yRatio = t.ratioY !== undefined ? t.ratioY : 1;
-            uRatio = t.ratioU !== undefined ? t.ratioU : 1;
-          } else if (t.splitType === 'PAY_ALL') {
-            if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
-            else { yRatio = 1; uRatio = 0; }
-          } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
-            const parts = t.splitType.split('_');
-            yRatio = parseInt(parts[1], 10);
-            uRatio = parseInt(parts[2], 10);
-          }
-
-          const totalRatio = yRatio + uRatio;
-          if (totalRatio > 0) {
-            if (t.payer === 'ゆうすけ') {
-              balance += Math.round((t.amount * uRatio) / totalRatio);
-            } else if (t.payer === 'うらら') {
-              balance -= Math.round((t.amount * yRatio) / totalRatio);
-            }
+          const settlement = calcSettlement(t);
+          if (t.payer === 'ゆうすけ') {
+            balance += settlement.amt;
+          } else if (t.payer === 'うらら') {
+            balance -= settlement.amt;
           }
         });
 
@@ -2694,27 +3043,11 @@
       let balance = 0;
       
       transactions.forEach((t) => {
-        let yRatio = 1, uRatio = 1;
-
-        if (t.splitType === 'CUSTOM') {
-          yRatio = t.ratioY !== undefined ? t.ratioY : 1;
-          uRatio = t.ratioU !== undefined ? t.ratioU : 1;
-        } else if (t.splitType === 'PAY_ALL') {
-          if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
-          else { yRatio = 1; uRatio = 0; }
-        } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
-          const parts = t.splitType.split('_');
-          yRatio = parseInt(parts[1], 10);
-          uRatio = parseInt(parts[2], 10);
-        }
-
-        const totalRatio = yRatio + uRatio;
-        if (totalRatio > 0) {
-          if (t.payer === 'ゆうすけ') {
-            balance += Math.round((t.amount * uRatio) / totalRatio);
-          } else if (t.payer === 'うらら') {
-            balance -= Math.round((t.amount * yRatio) / totalRatio);
-          }
+        const settlement = calcSettlement(t);
+        if (t.payer === 'ゆうすけ') {
+          balance += settlement.amt;
+        } else if (t.payer === 'うらら') {
+          balance -= settlement.amt;
         }
       });
 
@@ -2746,36 +3079,21 @@
       sortedTransactions.forEach((t) => {
         const li = document.createElement('li');
         const typeText = getRatioDisplayText(t.splitType, t.ratioY, t.ratioU);
-        
-        let yRatio = 1, uRatio = 1;
-        if (t.splitType === 'CUSTOM') {
-          yRatio = t.ratioY !== undefined ? t.ratioY : 1;
-          uRatio = t.ratioU !== undefined ? t.ratioU : 1;
-        } else if (t.splitType === 'PAY_ALL') {
-          if (t.payer === 'ゆうすけ') { yRatio = 0; uRatio = 1; }
-          else { yRatio = 1; uRatio = 0; }
-        } else if (t.splitType && t.splitType.startsWith('RATIO_')) {
-          const parts = t.splitType.split('_');
-          yRatio = parseInt(parts[1], 10);
-          uRatio = parseInt(parts[2], 10);
+
+        const settlement = calcSettlement(t);
+        let payText = '';
+        if (t.payer === 'ゆうすけ') {
+          payText = `うらら→ゆうすけ ${settlement.amt.toLocaleString()}円`;
+        } else if (t.payer === 'うらら') {
+          payText = `ゆうすけ→うらら ${settlement.amt.toLocaleString()}円`;
         }
 
-        let payText = '';
-        const totalRatio = yRatio + uRatio;
-        if (totalRatio > 0) {
-          if (t.payer === 'ゆうすけ') {
-            const amt = Math.round((t.amount * uRatio) / totalRatio);
-            payText = `うらら→ゆうすけ ${amt.toLocaleString()}円`;
-          } else if (t.payer === 'うらら') {
-            const amt = Math.round((t.amount * yRatio) / totalRatio);
-            payText = `ゆうすけ→うらら ${amt.toLocaleString()}円`;
-          }
-        }
-        
+        const personalTag = (t.personalItems && t.personalItems.length > 0) ? ` / 🛒${getPersonalSummaryText(t)}` : '';
+
         li.innerHTML = `
           <div class="item-info">
             <div class="item-title">${t.title} - ${t.amount.toLocaleString()}円</div>
-            <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText}) / ${payText}</div>
+            <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText}) / ${payText}${personalTag}</div>
           </div>
           <div class="btn-action-group">
             <button class="btn-edit" onclick="openEditModal('${t.id}')">編集</button>
@@ -2809,6 +3127,7 @@
         if (group.items && group.items.length > 0) {
           group.items.forEach(item => {
             const ratioStr = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
+            const personalStr = (item.personalItems && item.personalItems.length > 0) ? ` / 🛒${getPersonalSummaryText(item)}` : '';
             itemsHtml += `
               <li style="padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,0.05);">
                 <div>
@@ -2816,7 +3135,7 @@
                   <span style="color: var(--primary-color); font-weight: bold;">(${item.amount.toLocaleString()}円)</span>
                 </div>
                 <div style="font-size: 0.8em; color: var(--text-sub);">
-                  ${item.date} / ${item.payer}が支払い / ${ratioStr}
+                  ${item.date} / ${item.payer}が支払い / ${ratioStr}${personalStr}
                 </div>
               </li>
             `;
