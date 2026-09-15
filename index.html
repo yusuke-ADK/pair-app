@@ -1673,13 +1673,64 @@
       calcUpdateDisplay();
     }
 
+    // 「500-10%」→「500-(500*10/100)」のように、普通の電卓と同じ％の挙動に変換する
+    // ルール: 「A + B%」→A+A*B/100 / 「A - B%」→A-A*B/100
+    //         「A × B%」→A*(B/100) / 「A ÷ B%」→A/(B/100)
+    //         直前に演算子（の前の数値）が無い単独の「B%」→B/100
+    function preprocessPercent(expr) {
+      const tokens = expr.match(/\d+\.?\d*|[+\-*/()%]/g);
+      if (!tokens) return expr;
+
+      const result = [];
+      for (let i = 0; i < tokens.length; i++) {
+        const t = tokens[i];
+        if (t !== '%') { result.push(t); continue; }
+
+        const nStr = result.pop(); // %の直前の数値（B）
+        if (nStr === undefined) continue; // 想定外の並び（安全側にスキップ）
+
+        const op = result[result.length - 1];
+        if (op === '+' || op === '-' || op === '*' || op === '/') {
+          // 演算子の前にある「基準となる数値・括弧式」を、括弧の対応を考慮して取り出す
+          let j = result.length - 2;
+          const baseTokens = [];
+          if (j >= 0 && result[j] === ')') {
+            let depth = 0;
+            while (j >= 0) {
+              if (result[j] === ')') depth++;
+              if (result[j] === '(') depth--;
+              baseTokens.unshift(result[j]);
+              j--;
+              if (depth === 0) break;
+            }
+          } else if (j >= 0) {
+            baseTokens.unshift(result[j]);
+          }
+
+          if (baseTokens.length > 0) {
+            const baseStr = baseTokens.join('');
+            if (op === '+' || op === '-') {
+              result.push(`(${baseStr}*${nStr}/100)`);
+            } else {
+              result.push(`(${nStr}/100)`);
+            }
+            continue;
+          }
+        }
+        // 基準となる数値が見つからない場合（式の先頭など）は単純に100で割る
+        result.push(`(${nStr}/100)`);
+      }
+      return result.join('');
+    }
+
     function calcEvaluate() {
       if (!calcExpression) return 0;
       // 数字・演算子・小数点・括弧・空白以外を許可しない安全なチェック
       if (!/^[0-9+\-*/.%()\s]+$/.test(calcExpression)) return null;
       try {
+        const converted = preprocessPercent(calcExpression);
         // eslint-disable-next-line no-new-func
-        const result = Function('"use strict"; return (' + calcExpression + ')')();
+        const result = Function('"use strict"; return (' + converted + ')')();
         if (typeof result !== 'number' || !isFinite(result)) return null;
         return result;
       } catch (e) {
