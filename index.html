@@ -464,9 +464,17 @@
       opacity: 0.75;
     }
     .personal-remove-btn:active { transform: scale(0.9); }
-    .personal-item-mid { display: flex; gap: 6px; }
+    .personal-item-mid { display: flex; gap: 6px; align-items: center; }
     .personal-amount-input { flex: 1; min-width: 0; margin-bottom: 0 !important; }
-    .personal-tax-select { width: auto; flex-shrink: 0; min-width: 92px; margin-bottom: 0 !important; font-size: 0.8em; padding: 8px 6px !important; }
+    .personal-calc-btn {
+      flex-shrink: 0;
+      background: var(--primary-light);
+      border-radius: var(--radius-sm);
+      padding: 8px 8px;
+      font-size: 0.95em;
+      line-height: 1;
+    }
+    .personal-tax-select { width: auto; flex-shrink: 0; min-width: 80px; margin-bottom: 0 !important; font-size: 0.78em; padding: 8px 4px !important; }
     .personal-incl-note { font-size: 0.74em; color: var(--text-sub); margin-top: 4px; min-height: 1.1em; }
     .personal-memo-input { margin-top: 6px; margin-bottom: 0 !important; font-size: 0.85em; padding: 9px 12px !important; }
     .personal-add-btn { margin-top: 10px; font-size: 0.8em; }
@@ -1360,6 +1368,7 @@
     let calcTargetInputId = null;
     let calcExpression = '';
     const amountFieldPrefixMap = { amount: '', editAmount: 'edit', tmplAmount: 'tmpl', tmplUseAmount: 'tmplUse', tmplEditAmount: 'tmplEdit' };
+    const personalBaseToPrefix = { personal: '', editPersonal: 'edit', tmplPersonal: 'tmpl', tmplUsePersonal: 'tmplUse', tmplEditPersonal: 'tmplEdit' };
 
     /* ================= 個人分（立替の中の自己負担分）関連 ================= */
     let personalItemsState = { '': [], edit: [], tmpl: [], tmplUse: [], tmplEdit: [] };
@@ -1476,6 +1485,7 @@
 
     function personalRowHtml(prefix, row) {
       const base = personalBase(prefix);
+      const amountInputId = `${base}Amount_${row.rowId}`;
       const incl = calcAmountIncl(row.amount, row.taxMode);
       const inclText = row.taxMode === 'IN' ? '' : `→ 税込 ${incl.toLocaleString()}円換算`;
       return `
@@ -1488,7 +1498,8 @@
             <button type="button" class="personal-remove-btn" onclick="removePersonalItemRow('${prefix}','${row.rowId}')" aria-label="この行を削除">✕</button>
           </div>
           <div class="personal-item-mid">
-            <input type="number" class="personal-amount-input" placeholder="金額" value="${row.amount}" oninput="onPersonalAmountInput('${prefix}','${row.rowId}', this.value)">
+            <input type="number" class="personal-amount-input" id="${amountInputId}" placeholder="金額" value="${row.amount}" oninput="onPersonalAmountInput('${prefix}','${row.rowId}', this.value)">
+            <button type="button" class="btn-calc personal-calc-btn" onclick="openCalculator('${amountInputId}')" aria-label="電卓を開く">🧮</button>
             <select class="personal-tax-select" onchange="onPersonalTaxInput('${prefix}','${row.rowId}', this.value)">
               <option value="IN" ${row.taxMode === 'IN' ? 'selected' : ''}>税込</option>
               <option value="EX8" ${row.taxMode === 'EX8' ? 'selected' : ''}>税抜8%</option>
@@ -1698,6 +1709,14 @@
         document.getElementById(calcTargetInputId).value = roundedResult;
         if (calcTargetInputId in amountFieldPrefixMap) {
           updatePersonalSummary(amountFieldPrefixMap[calcTargetInputId]);
+        } else if (calcTargetInputId.includes('Amount_')) {
+          const idx = calcTargetInputId.indexOf('Amount_');
+          const base = calcTargetInputId.substring(0, idx);
+          const rowId = calcTargetInputId.substring(idx + 'Amount_'.length);
+          const prefix = personalBaseToPrefix[base];
+          if (prefix !== undefined) {
+            onPersonalAmountInput(prefix, rowId, roundedResult);
+          }
         }
       }
       closeCalculator();
