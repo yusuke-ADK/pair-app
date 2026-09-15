@@ -557,7 +557,7 @@
       box-shadow: var(--shadow-sm);
     }
 
-    /* GitHub最終更新日フッター */
+    /* GitHubシステム最終更新日フッター */
     .app-footer {
       text-align: right;
       font-size: 0.68em;
@@ -3439,7 +3439,7 @@
         if (data && data[0] && data[0].commit && data[0].commit.committer) {
           const d = new Date(data[0].commit.committer.date);
           const formatted = `${d.getFullYear()}/${String(d.getMonth() + 1).padStart(2, '0')}/${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-          footer.textContent = `最終更新: ${formatted}`;
+          footer.textContent = `システム最終更新: ${formatted}`;
         }
       } catch (e) {
         // 取得失敗時は何も表示しない（レイアウトを崩さない）
