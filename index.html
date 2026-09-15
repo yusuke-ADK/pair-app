@@ -870,17 +870,17 @@
       </div>
       <input type="number" id="amount" placeholder="例: 3000" oninput="updatePersonalSummary('')">
 
-      <label>詳細・メモ（任意）</label>
-      <input type="text" id="title" placeholder="例: スーパーでの買い物">
-
       <div class="personal-area">
-        <button type="button" class="btn-link personal-toggle-btn" id="personalToggleBtn" onclick="togglePersonalArea('')">＋ 個人分を差し引く</button>
+        <button type="button" class="btn-link personal-toggle-btn" id="personalToggleBtn" onclick="togglePersonalArea('')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
         <div class="personal-body" id="personalBody" style="display: none;">
           <div class="personal-list" id="personalList"></div>
           <button type="button" class="btn-link personal-add-btn" onclick="addPersonalItemRow('')">＋ 行を追加</button>
           <div class="personal-summary" id="personalSummary"></div>
         </div>
       </div>
+
+      <label>詳細・メモ（任意）</label>
+      <input type="text" id="title" placeholder="例: スーパーでの買い物">
 
       <div id="simpleSplitArea">
         <label>割り方</label>
@@ -1016,17 +1016,17 @@
         </div>
         <input type="number" id="editAmount" oninput="updatePersonalSummary('edit')">
 
-        <label>詳細・メモ（任意）</label>
-        <input type="text" id="editMemo" placeholder="例: スーパーでの買い物">
-
         <div class="personal-area">
-          <button type="button" class="btn-link personal-toggle-btn" id="editPersonalToggleBtn" onclick="togglePersonalArea('edit')">＋ 個人分を差し引く</button>
+          <button type="button" class="btn-link personal-toggle-btn" id="editPersonalToggleBtn" onclick="togglePersonalArea('edit')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
           <div class="personal-body" id="editPersonalBody" style="display: none;">
             <div class="personal-list" id="editPersonalList"></div>
             <button type="button" class="btn-link personal-add-btn" onclick="addPersonalItemRow('edit')">＋ 行を追加</button>
             <div class="personal-summary" id="editPersonalSummary"></div>
           </div>
         </div>
+
+        <label>詳細・メモ（任意）</label>
+        <input type="text" id="editMemo" placeholder="例: スーパーでの買い物">
 
         <div id="editSimpleSplitArea">
           <label>割り方</label>
@@ -1101,17 +1101,17 @@
         </div>
         <input type="number" id="tmplUseAmount" oninput="updatePersonalSummary('tmplUse')">
 
-        <label>詳細・メモ（任意）</label>
-        <input type="text" id="tmplUseMemo" placeholder="例: 今月分の電気代">
-
         <div class="personal-area">
-          <button type="button" class="btn-link personal-toggle-btn" id="tmplUsePersonalToggleBtn" onclick="togglePersonalArea('tmplUse')">＋ 個人分を差し引く</button>
+          <button type="button" class="btn-link personal-toggle-btn" id="tmplUsePersonalToggleBtn" onclick="togglePersonalArea('tmplUse')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
           <div class="personal-body" id="tmplUsePersonalBody" style="display: none;">
             <div class="personal-list" id="tmplUsePersonalList"></div>
             <button type="button" class="btn-link personal-add-btn" onclick="addPersonalItemRow('tmplUse')">＋ 行を追加</button>
             <div class="personal-summary" id="tmplUsePersonalSummary"></div>
           </div>
         </div>
+
+        <label>詳細・メモ（任意）</label>
+        <input type="text" id="tmplUseMemo" placeholder="例: 今月分の電気代">
 
         <div id="tmplUseSimpleSplitArea">
           <label>割り方</label>
@@ -1170,17 +1170,17 @@
         </div>
         <input type="number" id="tmplAmount" placeholder="例: 80000（毎回変わる場合は空欄可）" oninput="updatePersonalSummary('tmpl')">
 
-        <label>詳細・メモ（任意）</label>
-        <input type="text" id="tmplMemo" placeholder="例: 電気代・ガス代">
-
         <div class="personal-area">
-          <button type="button" class="btn-link personal-toggle-btn" id="tmplPersonalToggleBtn" onclick="togglePersonalArea('tmpl')">＋ 個人分を差し引く</button>
+          <button type="button" class="btn-link personal-toggle-btn" id="tmplPersonalToggleBtn" onclick="togglePersonalArea('tmpl')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
           <div class="personal-body" id="tmplPersonalBody" style="display: none;">
             <div class="personal-list" id="tmplPersonalList"></div>
             <button type="button" class="btn-link personal-add-btn" onclick="addPersonalItemRow('tmpl')">＋ 行を追加</button>
             <div class="personal-summary" id="tmplPersonalSummary"></div>
           </div>
         </div>
+
+        <label>詳細・メモ（任意）</label>
+        <input type="text" id="tmplMemo" placeholder="例: 電気代・ガス代">
 
         <div id="tmplSimpleSplitArea">
           <label>割り方</label>
@@ -1243,17 +1243,17 @@
         </div>
         <input type="number" id="tmplEditAmount" placeholder="例: 80000（毎回変わる場合は空欄可）" oninput="updatePersonalSummary('tmplEdit')">
 
-        <label>詳細・メモ（任意）</label>
-        <input type="text" id="tmplEditMemo" placeholder="例: 電気代・ガス代">
-
         <div class="personal-area">
-          <button type="button" class="btn-link personal-toggle-btn" id="tmplEditPersonalToggleBtn" onclick="togglePersonalArea('tmplEdit')">＋ 個人分を差し引く</button>
+          <button type="button" class="btn-link personal-toggle-btn" id="tmplEditPersonalToggleBtn" onclick="togglePersonalArea('tmplEdit')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
           <div class="personal-body" id="tmplEditPersonalBody" style="display: none;">
             <div class="personal-list" id="tmplEditPersonalList"></div>
             <button type="button" class="btn-link personal-add-btn" onclick="addPersonalItemRow('tmplEdit')">＋ 行を追加</button>
             <div class="personal-summary" id="tmplEditPersonalSummary"></div>
           </div>
         </div>
+
+        <label>詳細・メモ（任意）</label>
+        <input type="text" id="tmplEditMemo" placeholder="例: 電気代・ガス代">
 
         <div id="tmplEditSimpleSplitArea">
           <label>割り方</label>
