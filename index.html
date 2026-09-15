@@ -521,6 +521,42 @@
     .sort-controls label { margin-bottom: 0; font-weight: normal; white-space: nowrap; }
     .sort-controls select { margin-bottom: 0; width: auto; padding: 6px 8px; font-size: 0.9em; flex-grow: 1; min-height: 36px; }
 
+    /* 項目（カテゴリ）絞り込みチップ */
+    .filter-category-buttons {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding-bottom: 2px;
+      scrollbar-width: none;
+    }
+    .filter-category-buttons::-webkit-scrollbar { display: none; }
+    .btn-filter-category {
+      flex: 0 0 auto;
+      padding: 8px 14px;
+      font-size: 0.82em;
+      font-weight: bold;
+      background: rgba(238, 241, 246, 0.85);
+      border: 1.5px solid #e2e5ea;
+      border-radius: 20px;
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.15s var(--ease-out);
+      white-space: nowrap;
+    }
+    .btn-filter-category:hover {
+      border-color: var(--primary-color);
+      color: var(--primary-color);
+    }
+    .btn-filter-category:active { transform: scale(0.96); }
+    .btn-filter-category.active {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+      color: #ffffff;
+      box-shadow: var(--shadow-sm);
+    }
+
     /* アコーディオン */
     .settlement-block {
       background: rgba(255, 255, 255, 0.65);
@@ -1004,6 +1040,7 @@
         <option value="asc">昇順 ▲</option>
       </select>
     </div>
+    <div class="filter-category-buttons" id="filterCategoryButtons"></div>
     <ul id="historyList"></ul>
   </div>
 
@@ -1421,6 +1458,7 @@
     let settledGroups = [];
     let categories = defaultCategories;
     let quickCategories = defaultQuickCategories;
+    let categoryFilter = 'すべて';
     let templates = [];
     
     // 割合切り替えのステータス管理
@@ -2454,6 +2492,8 @@
         }
         updateCategorySelect();
         renderQuickCategoryButtons();
+        renderFilterCategoryButtons();
+        updateView();
         
         if (document.getElementById('categoryModal').classList.contains('open')) {
           renderCategoryModalList();
@@ -2514,6 +2554,37 @@
     function selectQuickCategory(cat) {
       document.getElementById('category').value = cat;
       renderQuickCategoryButtons();
+    }
+
+    /* 未精算の記録：項目（カテゴリ）絞り込みチップ */
+    function renderFilterCategoryButtons() {
+      const container = document.getElementById('filterCategoryButtons');
+      if (!container) return;
+      if (!categories.includes(categoryFilter) && categoryFilter !== 'すべて') {
+        categoryFilter = 'すべて';
+      }
+      container.innerHTML = '';
+      const allBtn = document.createElement('button');
+      allBtn.type = 'button';
+      allBtn.className = 'btn-filter-category' + (categoryFilter === 'すべて' ? ' active' : '');
+      allBtn.textContent = 'すべて';
+      allBtn.onclick = () => selectCategoryFilter('すべて');
+      container.appendChild(allBtn);
+
+      categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-filter-category' + (cat === categoryFilter ? ' active' : '');
+        btn.textContent = cat;
+        btn.onclick = () => selectCategoryFilter(cat);
+        container.appendChild(btn);
+      });
+    }
+
+    function selectCategoryFilter(cat) {
+      categoryFilter = cat;
+      renderFilterCategoryButtons();
+      updateView();
     }
 
     /* ドラッグ＆ドロップ汎用処理 */
@@ -3215,8 +3286,10 @@
 
       const sortKey = document.getElementById('sortKey').value;
       const sortOrder = document.getElementById('sortOrder').value;
-      
-      let sortedTransactions = [...transactions];
+
+      let sortedTransactions = (categoryFilter && categoryFilter !== 'すべて')
+        ? transactions.filter(t => t.category === categoryFilter)
+        : [...transactions];
       sortedTransactions.sort((a, b) => {
         let valA = a[sortKey];
         let valB = b[sortKey];
@@ -3235,7 +3308,10 @@
       historyList.innerHTML = '';
 
       if (sortedTransactions.length === 0) {
-        historyList.innerHTML = '<li style="justify-content: center; color: var(--text-sub);">未精算の記録はありません</li>';
+        const emptyMsg = (categoryFilter && categoryFilter !== 'すべて')
+          ? `「${categoryFilter}」の未精算の記録はありません`
+          : '未精算の記録はありません';
+        historyList.innerHTML = `<li style="justify-content: center; color: var(--text-sub);">${emptyMsg}</li>`;
       }
 
       sortedTransactions.forEach((t) => {
