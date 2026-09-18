@@ -557,6 +557,147 @@
       box-shadow: var(--shadow-sm);
     }
 
+    /* 精算済み履歴：メインカードのティーザー＆導線ボタン */
+    .settled-teaser {
+      text-align: center;
+      font-size: 0.85em;
+      color: var(--text-sub);
+      background: rgba(241, 243, 246, 0.7);
+      border-radius: var(--radius-md);
+      padding: 12px 10px;
+      margin-bottom: 12px;
+      line-height: 1.6;
+    }
+    .settled-teaser strong { color: var(--primary-color); font-size: 1.05em; }
+    .btn-view-settled {
+      width: 100%;
+      padding: 12px;
+      background: linear-gradient(135deg, #a1c4fd 0%, #5b7fc7 100%);
+      color: white;
+      border: none;
+      border-radius: var(--radius-md);
+      font-weight: bold;
+      font-size: 0.9em;
+      cursor: pointer;
+      box-shadow: 0 5px 14px rgba(91, 127, 199, 0.28);
+      transition: transform 0.15s var(--ease-out), box-shadow 0.15s ease, filter 0.15s ease;
+      min-height: 44px;
+    }
+    .btn-view-settled:hover { filter: brightness(1.04); }
+    .btn-view-settled:active { transform: scale(0.98); }
+
+    /* 精算済み履歴：全画面 */
+    .screen-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: linear-gradient(160deg, #e4cbff 0%, #b9d3fc 48%, #9fd8ea 100%);
+      z-index: 1200;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transform: translateY(14px);
+      transition: opacity 0.25s var(--ease-out), visibility 0.25s var(--ease-out), transform 0.28s var(--ease-out);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .screen-overlay.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      transform: translateY(0);
+    }
+    .screen-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: calc(14px + env(safe-area-inset-top)) 16px 12px 16px;
+      flex: 0 0 auto;
+    }
+    .screen-header h3 { margin: 0; font-size: 1.05em; text-align: left; }
+    .screen-body {
+      flex: 1 1 auto;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior: contain;
+      padding: 0 16px calc(24px + env(safe-area-inset-bottom)) 16px;
+    }
+    .settled-search-row { display: flex; gap: 8px; margin-bottom: 10px; }
+    .settled-search-row input[type="text"] { margin-bottom: 0; }
+    .btn-adv-filter-toggle {
+      flex: 0 0 auto;
+      background: rgba(255,255,255,0.85);
+      border: 1.5px solid #e2e5ea;
+      border-radius: var(--radius-md);
+      color: var(--text-sub);
+      font-size: 0.82em;
+      font-weight: bold;
+      padding: 0 14px;
+      cursor: pointer;
+      min-height: 44px;
+      white-space: nowrap;
+    }
+    .btn-adv-filter-toggle.active { border-color: var(--primary-color); color: var(--primary-color); }
+    .settled-adv-filters {
+      display: none;
+      background: rgba(241, 243, 246, 0.8);
+      border-radius: var(--radius-md);
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .settled-adv-filters.open { display: block; }
+    .settled-adv-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .settled-adv-row:last-child { margin-bottom: 0; }
+    .settled-adv-row label { flex: 0 0 56px; margin-bottom: 0; font-weight: normal; font-size: 0.8em; }
+    .settled-adv-row input { margin-bottom: 0; }
+    .settled-adv-row span.tilde { color: var(--text-sub); flex: 0 0 auto; }
+    .btn-clear-filters {
+      width: 100%;
+      background: none;
+      border: none;
+      color: var(--text-sub);
+      font-size: 0.8em;
+      text-decoration: underline;
+      cursor: pointer;
+      padding: 4px;
+      margin-top: 2px;
+    }
+    .settled-mode-toggle { display: flex; gap: 6px; margin-bottom: 10px; }
+    .settled-mode-toggle button {
+      flex: 1;
+      padding: 9px 8px;
+      font-size: 0.8em;
+      font-weight: bold;
+      background: rgba(238, 241, 246, 0.85);
+      border: 1.5px solid #e2e5ea;
+      border-radius: var(--radius-md);
+      color: var(--text-sub);
+      cursor: pointer;
+      transition: all 0.15s var(--ease-out);
+    }
+    .settled-mode-toggle button.active {
+      background: var(--primary-color);
+      border-color: var(--primary-color);
+      color: #fff;
+    }
+    .settled-summary-bar {
+      font-size: 0.8em;
+      color: var(--primary-color);
+      font-weight: bold;
+      text-align: right;
+      margin-bottom: 8px;
+      min-height: 1.2em;
+    }
+    .settled-empty {
+      text-align: center;
+      color: var(--text-sub);
+      font-size: 0.85em;
+      padding: 24px 10px;
+    }
+    li.settled-item-detailed { display: block; align-items: stretch; }
+    li.settled-item-detailed .item-sub.settled-pay { color: var(--primary-color); font-weight: 600; }
+    li.settled-item-detailed .item-sub.settled-meta { opacity: 0.62; font-size: 0.76em; }
+
     /* GitHub最終更新日フッター */
     .app-footer {
       text-align: right;
@@ -1061,11 +1202,64 @@
     <button class="btn-settle" onclick="settleUp()">精算を完了して清算額をリセット</button>
   </div>
 
-  <!-- 4. 精算済みの過去履歴 -->
+  <!-- 4. 精算済みの過去履歴（導線） -->
   <div class="card">
     <h3>精算済みの過去履歴</h3>
-    <div class="filter-category-buttons" id="filterSettledCategoryButtons"></div>
-    <div id="settledHistoryList"></div>
+    <div class="settled-teaser" id="settledTeaser">読み込み中...</div>
+    <button type="button" class="btn-view-settled" onclick="openSettledScreen()">🔍 検索・並び替えで見る</button>
+  </div>
+
+  <!-- 精算済みの過去履歴：全画面 -->
+  <div class="screen-overlay" id="settledScreen">
+    <div class="screen-header">
+      <h3>📖 精算済みの過去履歴</h3>
+      <button type="button" class="btn-close" onclick="closeSettledScreen()">✕</button>
+    </div>
+    <div class="screen-body">
+      <div class="settled-search-row">
+        <input type="text" id="settledSearchInput" placeholder="項目・メモ・タイトルで検索" oninput="onSettledSearchInput(this.value)">
+        <button type="button" class="btn-adv-filter-toggle" id="settledAdvFilterToggleBtn" onclick="toggleSettledAdvFilters()">詳細条件</button>
+      </div>
+      <div class="settled-adv-filters" id="settledAdvFilters">
+        <div class="settled-adv-row">
+          <label>金額</label>
+          <input type="number" id="settledAmountMin" placeholder="下限" oninput="onSettledAmountFilterInput()">
+          <span class="tilde">〜</span>
+          <input type="number" id="settledAmountMax" placeholder="上限" oninput="onSettledAmountFilterInput()">
+        </div>
+        <div class="settled-adv-row">
+          <label>発生日</label>
+          <input type="date" id="settledDateFrom" oninput="onSettledDateFilterInput()">
+          <span class="tilde">〜</span>
+          <input type="date" id="settledDateTo" oninput="onSettledDateFilterInput()">
+        </div>
+        <button type="button" class="btn-clear-filters" onclick="clearSettledFilters()">条件をクリア</button>
+      </div>
+
+      <div class="settled-mode-toggle">
+        <button type="button" id="settledModeGroupBtn" class="active" onclick="setSettledViewMode('group')">📅 精算日ごと</button>
+        <button type="button" id="settledModeFlatBtn" onclick="setSettledViewMode('flat')">📋 すべてフラット表示</button>
+      </div>
+
+      <div class="sort-controls">
+        <label>並び替え:</label>
+        <select id="settledSortKey" onchange="onSettledSortChange()">
+          <option value="createdAt" selected>登録日時</option>
+          <option value="date">発生日</option>
+          <option value="category">項目</option>
+          <option value="amount">金額</option>
+          <option value="__settledCreatedAt">精算日</option>
+        </select>
+        <select id="settledSortOrder" onchange="onSettledSortChange()">
+          <option value="desc" selected>降順 ▼</option>
+          <option value="asc">昇順 ▲</option>
+        </select>
+      </div>
+
+      <div class="filter-category-buttons" id="filterSettledCategoryButtons"></div>
+      <div class="settled-summary-bar" id="settledScreenSummary"></div>
+      <div id="settledScreenList"></div>
+    </div>
   </div>
 
   <!-- 割り勘ルーレットモーダル -->
@@ -1474,6 +1668,17 @@
     let quickCategories = defaultQuickCategories;
     let categoryFilter = 'すべて';
     let settledCategoryFilter = 'すべて';
+
+    // 精算済みの過去履歴（全画面）関連の状態
+    let settledScreenOpen = false;
+    let settledSearchText = '';
+    let settledAmountMin = null;
+    let settledAmountMax = null;
+    let settledDateFrom = '';
+    let settledDateTo = '';
+    let settledSortKey = 'createdAt';
+    let settledSortOrder = 'desc';
+    let settledViewMode = 'group'; // 'group'（精算日ごと） | 'flat'（すべてフラット表示）
     let templates = [];
     
     // 割合切り替えのステータス管理
@@ -1737,32 +1942,6 @@
         amt = (totalRatio > 0 ? Math.round(shared * yRatio / totalRatio) : 0) + pY;
       }
       return { yRatio, uRatio, totalRatio, pY, pU, shared, amt };
-    }
-
-    /* 精算済みの過去履歴：1件分の行HTML（未精算の記録と同じ見た目）
-       settledDate を渡すと「〇/〇/〇 精算分」タグを追記する（絞り込み時のフラット表示用） */
-    function renderSettledItemRow(item, settledDate) {
-      const ratioStr = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
-      const personalStr = (item.personalItems && item.personalItems.length > 0) ? ` / 🛒${getPersonalSummaryText(item)}` : '';
-      const itemSettlement = calcSettlement(item);
-      let itemPayText = '';
-      if (item.payer === 'ゆうすけ') {
-        itemPayText = `うらら→ゆうすけ ${itemSettlement.amt.toLocaleString()}円`;
-      } else if (item.payer === 'うらら') {
-        itemPayText = `ゆうすけ→うらら ${itemSettlement.amt.toLocaleString()}円`;
-      }
-      const settledTag = settledDate
-        ? `<div class="item-sub" style="color: var(--primary-color);">📅 ${settledDate} 精算分</div>`
-        : '';
-      return `
-        <li>
-          <div class="item-info">
-            <div class="item-title">${item.title} - ${item.amount.toLocaleString()}円</div>
-            <div class="item-sub">${item.date} / ${item.payer}が支払い (${ratioStr})${personalStr} / ${itemPayText}</div>
-            ${settledTag}
-          </div>
-        </li>
-      `;
     }
 
     function getPersonalSummaryText(t) {
@@ -2657,7 +2836,8 @@
     function selectSettledCategoryFilter(cat) {
       settledCategoryFilter = cat;
       renderSettledFilterCategoryButtons();
-      updateView();
+      renderSettledTeaser();
+      if (settledScreenOpen) renderSettledScreen();
     }
 
     /* ドラッグ＆ドロップ汎用処理 */
@@ -3423,59 +3603,263 @@
         resultBox.textContent = "貸し借りなし（0円）";
       }
 
-      const settledList = document.getElementById('settledHistoryList');
-      settledList.innerHTML = '';
+      renderSettledTeaser();
+      if (settledScreenOpen) renderSettledScreen();
+    }
 
+    /* メインカードのティーザー（件数・直近の精算結果） */
+    function renderSettledTeaser() {
+      const teaser = document.getElementById('settledTeaser');
+      if (!teaser) return;
       if (settledGroups.length === 0) {
-        settledList.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 0.85em; padding: 10px;">精算済みの履歴はありません</div>';
-      } else if (settledCategoryFilter === 'すべて') {
-        /* 絞り込みなし：精算日ごとにアコーディオンでグループ表示 */
-        settledGroups.forEach((group) => {
-          const block = document.createElement('div');
-          block.className = 'settlement-block';
+        teaser.innerHTML = 'まだ精算済みの履歴はありません';
+        return;
+      }
+      const latest = settledGroups[0]; // createdAt desc で購読済み
+      const itemCount = settledGroups.reduce((sum, g) => sum + ((g.items && g.items.length) || 0), 0);
+      teaser.innerHTML = `<strong>${settledGroups.length}回</strong>の精算・${itemCount}件の記録${latest ? `<br>直近：${latest.date}（${latest.summaryText}）` : ''}`;
+    }
 
-          let itemsHtml = '';
-          if (group.items && group.items.length > 0) {
-            group.items.forEach(item => {
-              itemsHtml += renderSettledItemRow(item);
-            });
-          }
+    /* ===== 精算済みの過去履歴：全画面 ===== */
 
-          block.innerHTML = `
-            <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
-              <div class="settlement-title-info">
-                <span class="accordion-icon" id="icon-${group.id}">▶</span>
-                <div>
-                  <div>${group.date} の精算</div>
-                  <div style="font-size: 0.8em; color: var(--primary-color); font-weight: normal; margin-top: 2px;">
-                    ${group.summaryText}
-                  </div>
-                </div>
-              </div>
-              <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
-            </div>
-            <div class="settlement-details" id="details-${group.id}">
-              <ul style="margin: 0; padding: 0;">
-                ${itemsHtml}
-              </ul>
-            </div>
-          `;
-          settledList.appendChild(block);
-        });
-      } else {
-        /* 項目で絞り込み中：精算日をまたいで該当項目をすべてフラットに一覧表示 */
-        let flatItemsHtml = '';
-        settledGroups.forEach((group) => {
-          const groupItems = (group.items || []).filter(item => item.category === settledCategoryFilter);
-          groupItems.forEach(item => {
-            flatItemsHtml += renderSettledItemRow(item, group.date);
+    function openSettledScreen() {
+      settledScreenOpen = true;
+      document.getElementById('settledScreen').classList.add('open');
+      document.body.style.overflow = 'hidden';
+      try { history.pushState({ settledScreen: true }, ''); } catch (e) {}
+      renderSettledFilterCategoryButtons();
+      updateSettledViewModeButtons();
+      renderSettledScreen();
+    }
+
+    function closeSettledScreen(skipHistoryBack) {
+      if (!settledScreenOpen) return;
+      settledScreenOpen = false;
+      document.getElementById('settledScreen').classList.remove('open');
+      document.body.style.overflow = '';
+      if (!skipHistoryBack && window.history.state && window.history.state.settledScreen) {
+        history.back();
+      }
+    }
+
+    window.addEventListener('popstate', () => {
+      if (settledScreenOpen) closeSettledScreen(true);
+    });
+
+    function toggleSettledAdvFilters() {
+      const panel = document.getElementById('settledAdvFilters');
+      const btn = document.getElementById('settledAdvFilterToggleBtn');
+      const open = panel.classList.toggle('open');
+      btn.classList.toggle('active', open);
+    }
+
+    function onSettledSearchInput(v) {
+      settledSearchText = v.trim();
+      autoSwitchSettledViewModeIfFiltered();
+      renderSettledScreen();
+    }
+
+    function onSettledAmountFilterInput() {
+      const minV = document.getElementById('settledAmountMin').value;
+      const maxV = document.getElementById('settledAmountMax').value;
+      settledAmountMin = minV === '' ? null : Number(minV);
+      settledAmountMax = maxV === '' ? null : Number(maxV);
+      autoSwitchSettledViewModeIfFiltered();
+      renderSettledScreen();
+    }
+
+    function onSettledDateFilterInput() {
+      settledDateFrom = document.getElementById('settledDateFrom').value;
+      settledDateTo = document.getElementById('settledDateTo').value;
+      autoSwitchSettledViewModeIfFiltered();
+      renderSettledScreen();
+    }
+
+    function hasActiveSettledFilters() {
+      return !!settledSearchText || settledAmountMin !== null || settledAmountMax !== null || !!settledDateFrom || !!settledDateTo;
+    }
+
+    /* 検索・詳細条件を使い始めたら自動でフラット表示に切り替える（日付をまたいだ絞り込みが見やすいため） */
+    function autoSwitchSettledViewModeIfFiltered() {
+      if (hasActiveSettledFilters() && settledViewMode === 'group') {
+        settledViewMode = 'flat';
+        updateSettledViewModeButtons();
+      }
+    }
+
+    function clearSettledFilters() {
+      settledSearchText = '';
+      settledAmountMin = null;
+      settledAmountMax = null;
+      settledDateFrom = '';
+      settledDateTo = '';
+      document.getElementById('settledSearchInput').value = '';
+      document.getElementById('settledAmountMin').value = '';
+      document.getElementById('settledAmountMax').value = '';
+      document.getElementById('settledDateFrom').value = '';
+      document.getElementById('settledDateTo').value = '';
+      renderSettledScreen();
+    }
+
+    function setSettledViewMode(mode) {
+      settledViewMode = mode;
+      updateSettledViewModeButtons();
+      renderSettledScreen();
+    }
+
+    function updateSettledViewModeButtons() {
+      const groupBtn = document.getElementById('settledModeGroupBtn');
+      const flatBtn = document.getElementById('settledModeFlatBtn');
+      if (!groupBtn || !flatBtn) return;
+      groupBtn.classList.toggle('active', settledViewMode === 'group');
+      flatBtn.classList.toggle('active', settledViewMode === 'flat');
+    }
+
+    function onSettledSortChange() {
+      settledSortKey = document.getElementById('settledSortKey').value;
+      settledSortOrder = document.getElementById('settledSortOrder').value;
+      renderSettledScreen();
+    }
+
+    /* 検索語・金額・発生日・項目の条件に一致するか */
+    function settledItemMatchesFilters(item) {
+      if (settledSearchText) {
+        const kw = settledSearchText.toLowerCase();
+        const hay = [item.category, item.memo, item.title].filter(Boolean).join(' ').toLowerCase();
+        if (!hay.includes(kw)) return false;
+      }
+      if (settledAmountMin !== null && (item.amount || 0) < settledAmountMin) return false;
+      if (settledAmountMax !== null && (item.amount || 0) > settledAmountMax) return false;
+      if (settledDateFrom || settledDateTo) {
+        const rd = item.rawDate || (item.date ? item.date.replace(/\//g, '-') : '');
+        if (settledDateFrom && rd && rd < settledDateFrom) return false;
+        if (settledDateTo && rd && rd > settledDateTo) return false;
+      }
+      if (settledCategoryFilter !== 'すべて' && item.category !== settledCategoryFilter) return false;
+      return true;
+    }
+
+    function sortSettledItems(items) {
+      const key = settledSortKey;
+      const order = settledSortOrder;
+      const arr = [...items];
+      arr.sort((a, b) => {
+        let valA, valB;
+        if (key === 'date') {
+          valA = a.rawDate || a.date;
+          valB = b.rawDate || b.date;
+        } else {
+          valA = a[key];
+          valB = b[key];
+        }
+        if (valA === undefined) valA = 0;
+        if (valB === undefined) valB = 0;
+        if (valA < valB) return order === 'asc' ? -1 : 1;
+        if (valA > valB) return order === 'asc' ? 1 : -1;
+        return 0;
+      });
+      return arr;
+    }
+
+    /* 精算済みの記録1件分の行HTML：未精算の記録と同じ情報量をすべて表示 */
+    function renderSettledItemDetailed(item, settledDateLabel) {
+      const ratioStr = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
+      const personalStr = (item.personalItems && item.personalItems.length > 0) ? ` / 🛒${getPersonalSummaryText(item)}` : '';
+      const s = calcSettlement(item);
+      let payText = '貸し借りなし';
+      if (item.payer === 'ゆうすけ') {
+        payText = s.amt > 0 ? `うらら→ゆうすけ ${s.amt.toLocaleString()}円` : '支払いなし（0円）';
+      } else if (item.payer === 'うらら') {
+        payText = s.amt > 0 ? `ゆうすけ→うらら ${s.amt.toLocaleString()}円` : '支払いなし（0円）';
+      }
+      const memoRow = item.memo ? `<div class="item-sub">📝 ${item.memo}</div>` : '';
+      const createdAtStr = item.createdAt
+        ? new Date(item.createdAt).toLocaleString('ja-JP', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
+        : '不明';
+      const settledTag = settledDateLabel ? ` ・ 📅${settledDateLabel} 精算分` : '';
+      return `
+        <li class="settled-item-detailed">
+          <div class="item-info">
+            <div class="item-title">🏷️ ${item.category || ''} - ${(item.amount || 0).toLocaleString()}円</div>
+            ${memoRow}
+            <div class="item-sub">📅 ${item.date} / 👤 ${item.payer}が支払い (${ratioStr})${personalStr}</div>
+            <div class="item-sub settled-pay">🔄 ${payText}</div>
+            <div class="item-sub settled-meta">🕒登録 ${createdAtStr}${settledTag}</div>
+          </div>
+        </li>
+      `;
+    }
+
+    function renderSettledScreen() {
+      const listEl = document.getElementById('settledScreenList');
+      const summaryEl = document.getElementById('settledScreenSummary');
+      if (!listEl || !summaryEl) return;
+
+      if (settledViewMode === 'flat') {
+        let flatItems = [];
+        settledGroups.forEach(group => {
+          (group.items || []).forEach(item => {
+            if (settledItemMatchesFilters(item)) {
+              flatItems.push(Object.assign({}, item, {
+                __settledCreatedAt: group.createdAt,
+                __settledDateLabel: group.date
+              }));
+            }
           });
         });
+        flatItems = sortSettledItems(flatItems);
 
-        if (flatItemsHtml) {
-          settledList.innerHTML = `<ul style="margin: 0; padding: 0;">${flatItemsHtml}</ul>`;
+        if (flatItems.length === 0) {
+          listEl.innerHTML = `<div class="settled-empty">条件に一致する精算済みの記録はありません</div>`;
+          summaryEl.textContent = '';
         } else {
-          settledList.innerHTML = `<div style="text-align: center; color: var(--text-sub); font-size: 0.85em; padding: 10px;">「${settledCategoryFilter}」の精算済みの記録はありません</div>`;
+          listEl.innerHTML = `<ul style="margin:0;padding:0;">${flatItems.map(it => renderSettledItemDetailed(it, it.__settledDateLabel)).join('')}</ul>`;
+          const total = flatItems.reduce((sum, it) => sum + (it.amount || 0), 0);
+          summaryEl.textContent = `${flatItems.length}件 ・ 合計 ${total.toLocaleString()}円`;
+        }
+      } else {
+        let html = '';
+        let groupCount = 0;
+        let itemCount = 0;
+        settledGroups.forEach(group => {
+          const items = sortSettledItems((group.items || []).filter(item =>
+            settledCategoryFilter === 'すべて' || item.category === settledCategoryFilter
+          ));
+          if (items.length === 0) return;
+          groupCount++;
+          itemCount += items.length;
+          html += `
+            <div class="settlement-block">
+              <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
+                <div class="settlement-title-info">
+                  <span class="accordion-icon" id="icon-${group.id}">▶</span>
+                  <div>
+                    <div>${group.date} の精算</div>
+                    <div style="font-size: 0.8em; color: var(--primary-color); font-weight: normal; margin-top: 2px;">
+                      ${group.summaryText}
+                    </div>
+                  </div>
+                </div>
+                <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
+              </div>
+              <div class="settlement-details" id="details-${group.id}">
+                <ul style="margin: 0; padding: 0;">
+                  ${items.map(it => renderSettledItemDetailed(it)).join('')}
+                </ul>
+              </div>
+            </div>
+          `;
+        });
+
+        if (groupCount === 0) {
+          const emptyMsg = settledCategoryFilter !== 'すべて'
+            ? `「${settledCategoryFilter}」の精算済みの記録はありません`
+            : '精算済みの履歴はありません';
+          listEl.innerHTML = `<div class="settled-empty">${emptyMsg}</div>`;
+          summaryEl.textContent = '';
+        } else {
+          listEl.innerHTML = html;
+          summaryEl.textContent = `${groupCount}回の精算 ・ ${itemCount}件`;
         }
       }
     }
