@@ -235,6 +235,21 @@
       box-shadow: 0 0 0 4px rgba(91, 127, 199, 0.14);
       background: #ffffff;
     }
+    /* 金額など必須項目が未入力・不正な値の時の赤枠表示 */
+    input.input-invalid {
+      border-color: #ff5b69 !important;
+    }
+    input.input-invalid:focus {
+      box-shadow: 0 0 0 4px rgba(255, 91, 105, 0.16) !important;
+    }
+    /* 送信系ボタンの二重送信防止時の見た目 */
+    .btn-submit:disabled, .btn-settle:disabled {
+      opacity: 0.55;
+      cursor: default;
+      box-shadow: none;
+      filter: none;
+      transform: none;
+    }
 
     /* iOS Safariでdate入力欄が右にはみ出す不具合の対策 */
     input[type="date"] {
@@ -1130,7 +1145,7 @@
         <label>金額（円）</label>
         <button type="button" class="btn-calc" onclick="openCalculator('amount')">🧮 電卓</button>
       </div>
-      <input type="number" id="amount" placeholder="例: 3000" oninput="updatePersonalSummary('')">
+      <input type="number" id="amount" placeholder="例: 3000" oninput="updatePersonalSummary('');validateAmountField('amount','btnAddTransaction')">
 
       <div class="personal-area">
         <button type="button" class="btn-link personal-toggle-btn" id="personalToggleBtn" onclick="togglePersonalArea('')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
@@ -1173,7 +1188,7 @@
         <button type="button" class="btn-gamble" onclick="openRouletteModal()">🎲 ｷﾞｬﾝﾌﾞる？</button>
       </div>
 
-      <button class="btn-submit" onclick="addTransaction()">記録を追加する</button>
+      <button class="btn-submit" id="btnAddTransaction" onclick="addTransaction()">記録を追加する</button>
     </div>
   </div>
 
@@ -1199,7 +1214,7 @@
   <!-- 3. 精算額計算表示とリセットボタン -->
   <div class="card">
     <div class="result" id="resultBox">通信中...</div>
-    <button class="btn-settle" onclick="settleUp()">精算を完了して清算額をリセット</button>
+    <button class="btn-settle" id="btnSettleUp" onclick="settleUp()">精算を完了して清算額をリセット</button>
   </div>
 
   <!-- 4. 精算済みの過去履歴（導線） -->
@@ -1331,7 +1346,7 @@
           <label>金額（円）</label>
           <button type="button" class="btn-calc" onclick="openCalculator('editAmount')">🧮 電卓</button>
         </div>
-        <input type="number" id="editAmount" oninput="updatePersonalSummary('edit')">
+        <input type="number" id="editAmount" oninput="updatePersonalSummary('edit');validateAmountField('editAmount','btnSaveEditedTransaction')">
 
         <div class="personal-area">
           <button type="button" class="btn-link personal-toggle-btn" id="editPersonalToggleBtn" onclick="togglePersonalArea('edit')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
@@ -1370,7 +1385,7 @@
           <button type="button" class="btn-link" id="editToggleRatioBtn" onclick="toggleRatio('edit')" style="font-size: 0.78em; color: var(--text-sub);">＋ 割合を細かく設定</button>
         </div>
 
-        <button class="btn-submit" onclick="saveEditedTransaction()" style="margin-top: 10px;">変更を保存する</button>
+        <button class="btn-submit" id="btnSaveEditedTransaction" onclick="saveEditedTransaction()" style="margin-top: 10px;">変更を保存する</button>
       </div>
     </div>
   </div>
@@ -1416,7 +1431,7 @@
           <label>金額（円）</label>
           <button type="button" class="btn-calc" onclick="openCalculator('tmplUseAmount')">🧮 電卓</button>
         </div>
-        <input type="number" id="tmplUseAmount" oninput="updatePersonalSummary('tmplUse')">
+        <input type="number" id="tmplUseAmount" oninput="updatePersonalSummary('tmplUse');validateAmountField('tmplUseAmount','btnSubmitTemplateTransaction')">
 
         <div class="personal-area">
           <button type="button" class="btn-link personal-toggle-btn" id="tmplUsePersonalToggleBtn" onclick="togglePersonalArea('tmplUse')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
@@ -1455,7 +1470,7 @@
           <button type="button" class="btn-link" id="tmplUseToggleRatioBtn" onclick="toggleRatio('tmplUse')" style="font-size: 0.78em; color: var(--text-sub);">＋ 割合を細かく設定</button>
         </div>
 
-        <button class="btn-submit" onclick="submitTemplateTransaction()" style="margin-top: 10px;">この内容で記録を追加する</button>
+        <button class="btn-submit" id="btnSubmitTemplateTransaction" onclick="submitTemplateTransaction()" style="margin-top: 10px;">この内容で記録を追加する</button>
       </div>
     </div>
   </div>
@@ -1654,6 +1669,19 @@
 
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
+
+    // オフライン時もデータを見たり記録したりできるようにする（電波が悪い場所でも記録だけはできて、復帰時に自動同期される）
+    db.enablePersistence({ synchronizeTabs: true }).catch((err) => {
+      if (err.code === 'failed-precondition') {
+        // 複数タブで開いている場合など、1タブでしか有効化できない
+        console.warn('オフライン保存は他のタブで有効化されています:', err.code);
+      } else if (err.code === 'unimplemented') {
+        // このブラウザはオフライン保存に対応していない
+        console.warn('このブラウザはオフライン保存に対応していません:', err.code);
+      } else {
+        console.error('オフライン保存の有効化に失敗しました:', err);
+      }
+    });
 
     // 匿名サインイン（これが通らないとFirestoreにアクセスできないようにする）
     firebase.auth().signInAnonymously().catch((error) => {
@@ -1953,6 +1981,18 @@
         return `${ownerShort}${incl.toLocaleString()}${p.memo ? '(' + p.memo + ')' : ''}`;
       });
       return `個人 ${parts.join('・')}`;
+    }
+
+    /* 金額入力欄のリアルタイムバリデーション：未入力・0円以下なら赤枠表示＋送信ボタンを無効化 */
+    function validateAmountField(inputId, buttonId) {
+      const input = document.getElementById(inputId);
+      const btn = document.getElementById(buttonId);
+      if (!input || !btn) return;
+      const raw = input.value;
+      const val = Number(raw);
+      const invalid = raw === '' || isNaN(val) || val <= 0;
+      input.classList.toggle('input-invalid', invalid);
+      btn.disabled = invalid;
     }
 
     function openCalculator(targetInputId) {
@@ -3015,75 +3055,85 @@
 
     /* 通常の個別記録の追加 */
     async function addTransaction() {
-      const dateVal = document.getElementById('dateInput').value;
-      const payer = document.querySelector('input[name="payer"]:checked').value;
-      const category = document.getElementById('category').value;
-      const amount = Number(document.getElementById('amount').value);
-      const memo = document.getElementById('title').value;
-      const title = memo ? `${category}（${memo}）` : category;
-      
-      let splitType, ratioY = 1, ratioU = 1;
-      
-      if (isCustomRatio) {
-        splitType = 'CUSTOM';
-        ratioY = Number(document.getElementById('ratioYusuke').value) || 0;
-        ratioU = Number(document.getElementById('ratioUrara').value) || 0;
-        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
-      } else {
-        splitType = getSplitTypeValue('');
+      const btn = document.getElementById('btnAddTransaction');
+      if (btn.disabled) return; // 二重送信防止：処理中は何もしない
+      btn.disabled = true;
+      try {
+        const dateVal = document.getElementById('dateInput').value;
+        const payer = document.querySelector('input[name="payer"]:checked').value;
+        const category = document.getElementById('category').value;
+        const amount = Number(document.getElementById('amount').value);
+        const memo = document.getElementById('title').value;
+        const title = memo ? `${category}（${memo}）` : category;
+
+        let splitType, ratioY = 1, ratioU = 1;
+
+        if (isCustomRatio) {
+          splitType = 'CUSTOM';
+          ratioY = Number(document.getElementById('ratioYusuke').value) || 0;
+          ratioU = Number(document.getElementById('ratioUrara').value) || 0;
+          if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+        } else {
+          splitType = getSplitTypeValue('');
+        }
+
+        if (!dateVal) return alert('発生日を選択してください');
+        if (!amount || amount <= 0) return alert('正しい金額を入力してください');
+
+        const personalItems = validatePersonalItems('', amount);
+        if (personalItems === null) return;
+
+        const formattedDate = dateVal.replace(/-/g, '/');
+
+        await db.collection('transactions').add({
+          payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
+          date: formattedDate, rawDate: dateVal, createdAt: Date.now()
+        });
+
+        // どっちがどっちに支払うことになるか計算
+        const settlement = calcSettlement({ amount, payer, splitType, ratioY, ratioU, personalItems });
+
+        let payText = '';
+        if (payer === 'ゆうすけ') {
+          payText = settlement.amt > 0 ? `うらら ➔ ゆうすけ ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
+        } else if (payer === 'うらら') {
+          payText = settlement.amt > 0 ? `ゆうすけ ➔ うらら ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
+        }
+
+        const ratioText = getRatioDisplayText(splitType, ratioY, ratioU);
+        const personalText = personalItems.length > 0 ? `\n🛒 ${getPersonalSummaryText({ personalItems })}` : '';
+
+        alert(
+          `💲記録完了💲\n\n` +
+          `📅 発生日：${formattedDate}\n` +
+          `👤 誰が払ったか：${payer}\n` +
+          `🏷️ カテゴリ：${category}\n` +
+          `💰 金額：${amount.toLocaleString()}円\n` +
+          `📝 詳細メモ：${memo || '（なし）'}\n` +
+          `⚖️ 割り方：${ratioText}${personalText}\n` +
+          `🔄 精算内容：${payText}`
+        );
+
+        document.getElementById('amount').value = '';
+        document.getElementById('title').value = '';
+        validateAmountField('amount', 'btnAddTransaction');
+
+        if (isCustomRatio) {
+          isCustomRatio = false;
+          document.getElementById('simpleSplitArea').style.display = 'block';
+          document.getElementById('customSplitArea').style.display = 'none';
+          document.getElementById('toggleRatioBtn').textContent = '＋ 割合を細かく設定';
+        }
+        setSplitTypeValue('', 'EQUAL');
+        document.getElementById('ratioYusuke').value = '1';
+        document.getElementById('ratioUrara').value = '1';
+        document.getElementById('payerYusuke').checked = true;
+        resetPersonalArea('');
+      } finally {
+        btn.disabled = false;
+        // 金額が未入力に戻っている場合はボタンを無効のままにする
+        validateAmountField('amount', 'btnAddTransaction');
       }
-
-      if (!dateVal) return alert('発生日を選択してください');
-      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
-
-      const personalItems = validatePersonalItems('', amount);
-      if (personalItems === null) return;
-
-      const formattedDate = dateVal.replace(/-/g, '/');
-
-      await db.collection('transactions').add({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
-        date: formattedDate, rawDate: dateVal, createdAt: Date.now()
-      });
-
-      // どっちがどっちに支払うことになるか計算
-      const settlement = calcSettlement({ amount, payer, splitType, ratioY, ratioU, personalItems });
-
-      let payText = '';
-      if (payer === 'ゆうすけ') {
-        payText = settlement.amt > 0 ? `うらら ➔ ゆうすけ ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
-      } else if (payer === 'うらら') {
-        payText = settlement.amt > 0 ? `ゆうすけ ➔ うらら ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
-      }
-
-      const ratioText = getRatioDisplayText(splitType, ratioY, ratioU);
-      const personalText = personalItems.length > 0 ? `\n🛒 ${getPersonalSummaryText({ personalItems })}` : '';
-
-      alert(
-        `💲記録完了💲\n\n` +
-        `📅 発生日：${formattedDate}\n` +
-        `👤 誰が払ったか：${payer}\n` +
-        `🏷️ カテゴリ：${category}\n` +
-        `💰 金額：${amount.toLocaleString()}円\n` +
-        `📝 詳細メモ：${memo || '（なし）'}\n` +
-        `⚖️ 割り方：${ratioText}${personalText}\n` +
-        `🔄 精算内容：${payText}`
-      );
-
-      document.getElementById('amount').value = '';
-      document.getElementById('title').value = '';
-      
-      if (isCustomRatio) {
-        isCustomRatio = false;
-        document.getElementById('simpleSplitArea').style.display = 'block';
-        document.getElementById('customSplitArea').style.display = 'none';
-        document.getElementById('toggleRatioBtn').textContent = '＋ 割合を細かく設定';
-      }
-      setSplitTypeValue('', 'EQUAL');
-      document.getElementById('ratioYusuke').value = '1';
-      document.getElementById('ratioUrara').value = '1';
-      document.getElementById('payerYusuke').checked = true;
-      resetPersonalArea('');
     }
 
     /* 編集モーダル */
@@ -3100,6 +3150,7 @@
       document.getElementById('editCategory').value = item.category || categories[0];
       document.getElementById('editAmount').value = item.amount;
       document.getElementById('editMemo').value = item.memo || '';
+      validateAmountField('editAmount', 'btnSaveEditedTransaction');
       
       const splitType = item.splitType || 'EQUAL';
       
@@ -3126,39 +3177,46 @@
     }
 
     async function saveEditedTransaction() {
-      const id = document.getElementById('editId').value;
-      const dateVal = document.getElementById('editDateInput').value;
-      const payer = document.querySelector('input[name="editPayer"]:checked').value;
-      const category = document.getElementById('editCategory').value;
-      const amount = Number(document.getElementById('editAmount').value);
-      const memo = document.getElementById('editMemo').value;
-      
-      let splitType, ratioY = 1, ratioU = 1;
-      
-      if (isEditCustomRatio) {
-        splitType = 'CUSTOM';
-        ratioY = Number(document.getElementById('editRatioYusuke').value) || 0;
-        ratioU = Number(document.getElementById('editRatioUrara').value) || 0;
-        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
-      } else {
-        splitType = getSplitTypeValue('edit');
+      const btn = document.getElementById('btnSaveEditedTransaction');
+      if (btn.disabled) return; // 二重送信防止：処理中は何もしない
+      btn.disabled = true;
+      try {
+        const id = document.getElementById('editId').value;
+        const dateVal = document.getElementById('editDateInput').value;
+        const payer = document.querySelector('input[name="editPayer"]:checked').value;
+        const category = document.getElementById('editCategory').value;
+        const amount = Number(document.getElementById('editAmount').value);
+        const memo = document.getElementById('editMemo').value;
+
+        let splitType, ratioY = 1, ratioU = 1;
+
+        if (isEditCustomRatio) {
+          splitType = 'CUSTOM';
+          ratioY = Number(document.getElementById('editRatioYusuke').value) || 0;
+          ratioU = Number(document.getElementById('editRatioUrara').value) || 0;
+          if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+        } else {
+          splitType = getSplitTypeValue('edit');
+        }
+
+        if (!dateVal) return alert('発生日を選択してください');
+        if (!amount || amount <= 0) return alert('正しい金額を入力してください');
+
+        const personalItems = validatePersonalItems('edit', amount);
+        if (personalItems === null) return;
+
+        const formattedDate = dateVal.replace(/-/g, '/');
+        const title = memo ? `${category}（${memo}）` : category;
+
+        await db.collection('transactions').doc(id).update({
+          payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
+          date: formattedDate, rawDate: dateVal
+        });
+
+        closeEditModal();
+      } finally {
+        btn.disabled = false;
       }
-
-      if (!dateVal) return alert('発生日を選択してください');
-      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
-
-      const personalItems = validatePersonalItems('edit', amount);
-      if (personalItems === null) return;
-
-      const formattedDate = dateVal.replace(/-/g, '/');
-      const title = memo ? `${category}（${memo}）` : category;
-
-      await db.collection('transactions').doc(id).update({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
-        date: formattedDate, rawDate: dateVal
-      });
-
-      closeEditModal();
     }
 
     async function deleteTransaction(id) {
@@ -3231,6 +3289,7 @@
       document.getElementById('tmplUseCategory').value = item.category || categories[0];
       document.getElementById('tmplUseAmount').value = item.amount || '';
       document.getElementById('tmplUseMemo').value = item.memo || '';
+      validateAmountField('tmplUseAmount', 'btnSubmitTemplateTransaction');
 
       const splitType = item.splitType || 'EQUAL';
       if (splitType === 'CUSTOM') {
@@ -3252,62 +3311,69 @@
     }
 
     async function submitTemplateTransaction() {
-      const dateVal = document.getElementById('tmplUseDateInput').value;
-      const payer = document.querySelector('input[name="tmplUsePayer"]:checked').value;
-      const category = document.getElementById('tmplUseCategory').value;
-      const amount = Number(document.getElementById('tmplUseAmount').value);
-      const memo = document.getElementById('tmplUseMemo').value;
-      const title = memo ? `${category}（${memo}）` : category;
+      const btn = document.getElementById('btnSubmitTemplateTransaction');
+      if (btn.disabled) return; // 二重送信防止：処理中は何もしない
+      btn.disabled = true;
+      try {
+        const dateVal = document.getElementById('tmplUseDateInput').value;
+        const payer = document.querySelector('input[name="tmplUsePayer"]:checked').value;
+        const category = document.getElementById('tmplUseCategory').value;
+        const amount = Number(document.getElementById('tmplUseAmount').value);
+        const memo = document.getElementById('tmplUseMemo').value;
+        const title = memo ? `${category}（${memo}）` : category;
 
-      let splitType, ratioY = 1, ratioU = 1;
-      if (isTmplUseCustomRatio) {
-        splitType = 'CUSTOM';
-        ratioY = Number(document.getElementById('tmplUseRatioYusuke').value) || 0;
-        ratioU = Number(document.getElementById('tmplUseRatioUrara').value) || 0;
-        if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
-      } else {
-        splitType = getSplitTypeValue('tmplUse');
+        let splitType, ratioY = 1, ratioU = 1;
+        if (isTmplUseCustomRatio) {
+          splitType = 'CUSTOM';
+          ratioY = Number(document.getElementById('tmplUseRatioYusuke').value) || 0;
+          ratioU = Number(document.getElementById('tmplUseRatioUrara').value) || 0;
+          if (ratioY === 0 && ratioU === 0) return alert('割合は両方0にはできません。');
+        } else {
+          splitType = getSplitTypeValue('tmplUse');
+        }
+
+        if (!dateVal) return alert('発生日を選択してください');
+        if (!amount || amount <= 0) return alert('正しい金額を入力してください');
+
+        const personalItems = validatePersonalItems('tmplUse', amount);
+        if (personalItems === null) return;
+
+        const formattedDate = dateVal.replace(/-/g, '/');
+
+        await db.collection('transactions').add({
+          payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
+          date: formattedDate, rawDate: dateVal, createdAt: Date.now()
+        });
+
+        // どっちがどっちに支払うことになるか計算
+        const settlement = calcSettlement({ amount, payer, splitType, ratioY, ratioU, personalItems });
+
+        let payText = '';
+        if (payer === 'ゆうすけ') {
+          payText = settlement.amt > 0 ? `うらら ➔ ゆうすけ ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
+        } else if (payer === 'うらら') {
+          payText = settlement.amt > 0 ? `ゆうすけ ➔ うらら ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
+        }
+
+        const ratioText = getRatioDisplayText(splitType, ratioY, ratioU);
+        const personalText = personalItems.length > 0 ? `\n🛒 ${getPersonalSummaryText({ personalItems })}` : '';
+
+        alert(
+          `💲記録完了💲\n\n` +
+          `📅 発生日：${formattedDate}\n` +
+          `👤 誰が払ったか：${payer}\n` +
+          `🏷️ カテゴリ：${category}\n` +
+          `💰 金額：${amount.toLocaleString()}円\n` +
+          `📝 詳細メモ：${memo || '（なし）'}\n` +
+          `⚖️ 割り方：${ratioText}${personalText}\n` +
+          `🔄 精算内容：${payText}`
+        );
+
+        resetPersonalArea('tmplUse');
+        closeTemplateUseModal();
+      } finally {
+        btn.disabled = false;
       }
-
-      if (!dateVal) return alert('発生日を選択してください');
-      if (!amount || amount <= 0) return alert('正しい金額を入力してください');
-
-      const personalItems = validatePersonalItems('tmplUse', amount);
-      if (personalItems === null) return;
-
-      const formattedDate = dateVal.replace(/-/g, '/');
-
-      await db.collection('transactions').add({
-        payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
-        date: formattedDate, rawDate: dateVal, createdAt: Date.now()
-      });
-
-      // どっちがどっちに支払うことになるか計算
-      const settlement = calcSettlement({ amount, payer, splitType, ratioY, ratioU, personalItems });
-
-      let payText = '';
-      if (payer === 'ゆうすけ') {
-        payText = settlement.amt > 0 ? `うらら ➔ ゆうすけ ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
-      } else if (payer === 'うらら') {
-        payText = settlement.amt > 0 ? `ゆうすけ ➔ うらら ${settlement.amt.toLocaleString()}円` : '支払いなし（0円）';
-      }
-
-      const ratioText = getRatioDisplayText(splitType, ratioY, ratioU);
-      const personalText = personalItems.length > 0 ? `\n🛒 ${getPersonalSummaryText({ personalItems })}` : '';
-
-      alert(
-        `💲記録完了💲\n\n` +
-        `📅 発生日：${formattedDate}\n` +
-        `👤 誰が払ったか：${payer}\n` +
-        `🏷️ カテゴリ：${category}\n` +
-        `💰 金額：${amount.toLocaleString()}円\n` +
-        `📝 詳細メモ：${memo || '（なし）'}\n` +
-        `⚖️ 割り方：${ratioText}${personalText}\n` +
-        `🔄 精算内容：${payText}`
-      );
-
-      resetPersonalArea('tmplUse');
-      closeTemplateUseModal();
     }
 
     function renderTemplateManageList() {
@@ -3479,49 +3545,56 @@
     }
 
     async function settleUp() {
+      const btn = document.getElementById('btnSettleUp');
+      if (btn.disabled) return; // 二重送信防止：処理中は何もしない
       if (transactions.length === 0) return alert('未精算の記録がありません。');
 
-      if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
-        const settledDate = new Date().toLocaleString('ja-JP');
-        let balance = 0;
-        let totalAmount = 0;
+      btn.disabled = true;
+      try {
+        if (confirm('現在の精算を完了し、残高を0にリセットしますか？')) {
+          const settledDate = new Date().toLocaleString('ja-JP');
+          let balance = 0;
+          let totalAmount = 0;
 
-        transactions.forEach((t) => {
-          totalAmount += t.amount;
-          const settlement = calcSettlement(t);
-          if (t.payer === 'ゆうすけ') {
-            balance += settlement.amt;
-          } else if (t.payer === 'うらら') {
-            balance -= settlement.amt;
+          transactions.forEach((t) => {
+            totalAmount += t.amount;
+            const settlement = calcSettlement(t);
+            if (t.payer === 'ゆうすけ') {
+              balance += settlement.amt;
+            } else if (t.payer === 'うらら') {
+              balance -= settlement.amt;
+            }
+          });
+
+          let summaryText = "貸し借りなし（清算済み）";
+          if (balance > 0) {
+            summaryText = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円`;
+          } else if (balance < 0) {
+            summaryText = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円`;
           }
-        });
 
-        let summaryText = "貸し借りなし（清算済み）";
-        if (balance > 0) {
-          summaryText = `うらら ➔ ゆうすけ へ ${balance.toLocaleString()}円`;
-        } else if (balance < 0) {
-          summaryText = `ゆうすけ ➔ うらら へ ${Math.abs(balance).toLocaleString()}円`;
+          const itemsToSave = [...transactions].sort((a, b) => a.createdAt - b.createdAt);
+          const count = itemsToSave.length;
+
+          await db.collection('settledGroups').add({
+            date: settledDate,
+            items: itemsToSave,
+            summaryText: summaryText,
+            createdAt: Date.now()
+          });
+
+          const batch = db.batch();
+          transactions.forEach(t => {
+            const ref = db.collection('transactions').doc(t.id);
+            batch.delete(ref);
+          });
+          await batch.commit();
+
+          const aiComment = getRandomAiSettleComment(summaryText, totalAmount, count);
+          alert(aiComment);
         }
-
-        const itemsToSave = [...transactions].sort((a, b) => a.createdAt - b.createdAt);
-        const count = itemsToSave.length;
-        
-        await db.collection('settledGroups').add({
-          date: settledDate,
-          items: itemsToSave,
-          summaryText: summaryText,
-          createdAt: Date.now()
-        });
-
-        const batch = db.batch();
-        transactions.forEach(t => {
-          const ref = db.collection('transactions').doc(t.id);
-          batch.delete(ref);
-        });
-        await batch.commit();
-
-        const aiComment = getRandomAiSettleComment(summaryText, totalAmount, count);
-        alert(aiComment);
+      } finally {
+        btn.disabled = false;
       }
     }
 
@@ -3899,6 +3972,7 @@
     setDefaultDate();
     setupConnectivityWatcher();
     loadLastUpdated();
+    validateAmountField('amount', 'btnAddTransaction');
 
     // サインインが完了してからデータの読み込みを開始する
     firebase.auth().onAuthStateChanged((user) => {
