@@ -1739,6 +1739,32 @@
       return { yRatio, uRatio, totalRatio, pY, pU, shared, amt };
     }
 
+    /* 精算済みの過去履歴：1件分の行HTML（未精算の記録と同じ見た目）
+       settledDate を渡すと「〇/〇/〇 精算分」タグを追記する（絞り込み時のフラット表示用） */
+    function renderSettledItemRow(item, settledDate) {
+      const ratioStr = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
+      const personalStr = (item.personalItems && item.personalItems.length > 0) ? ` / 🛒${getPersonalSummaryText(item)}` : '';
+      const itemSettlement = calcSettlement(item);
+      let itemPayText = '';
+      if (item.payer === 'ゆうすけ') {
+        itemPayText = `うらら→ゆうすけ ${itemSettlement.amt.toLocaleString()}円`;
+      } else if (item.payer === 'うらら') {
+        itemPayText = `ゆうすけ→うらら ${itemSettlement.amt.toLocaleString()}円`;
+      }
+      const settledTag = settledDate
+        ? `<div class="item-sub" style="color: var(--primary-color);">📅 ${settledDate} 精算分</div>`
+        : '';
+      return `
+        <li>
+          <div class="item-info">
+            <div class="item-title">${item.title} - ${item.amount.toLocaleString()}円</div>
+            <div class="item-sub">${item.date} / ${item.payer}が支払い (${ratioStr})${personalStr} / ${itemPayText}</div>
+            ${settledTag}
+          </div>
+        </li>
+      `;
+    }
+
     function getPersonalSummaryText(t) {
       const list = t.personalItems || [];
       if (!list.length) return '';
@@ -3402,43 +3428,18 @@
 
       if (settledGroups.length === 0) {
         settledList.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 0.85em; padding: 10px;">精算済みの履歴はありません</div>';
-      } else {
-        let renderedCount = 0;
-
+      } else if (settledCategoryFilter === 'すべて') {
+        /* 絞り込みなし：精算日ごとにアコーディオンでグループ表示 */
         settledGroups.forEach((group) => {
-          const groupItems = (group.items && group.items.length > 0)
-            ? group.items.filter(item => settledCategoryFilter === 'すべて' || item.category === settledCategoryFilter)
-            : [];
-
-          if (groupItems.length === 0) return;
-          renderedCount++;
-
           const block = document.createElement('div');
           block.className = 'settlement-block';
 
           let itemsHtml = '';
-          groupItems.forEach(item => {
-            const ratioStr = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
-            const personalStr = (item.personalItems && item.personalItems.length > 0) ? ` / 🛒${getPersonalSummaryText(item)}` : '';
-            const itemSettlement = calcSettlement(item);
-            let itemPayText = '';
-            if (item.payer === 'ゆうすけ') {
-              itemPayText = `うらら→ゆうすけ ${itemSettlement.amt.toLocaleString()}円`;
-            } else if (item.payer === 'うらら') {
-              itemPayText = `ゆうすけ→うらら ${itemSettlement.amt.toLocaleString()}円`;
-            }
-            itemsHtml += `
-              <li style="padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,0.05);">
-                <div>
-                  <span style="font-weight: bold; color: var(--text-main);">${item.title}</span> 
-                  <span style="color: var(--primary-color); font-weight: bold;">(${item.amount.toLocaleString()}円)</span>
-                </div>
-                <div style="font-size: 0.8em; color: var(--text-sub);">
-                  ${item.date} / ${item.payer}が支払い (${ratioStr})${personalStr} / ${itemPayText}
-                </div>
-              </li>
-            `;
-          });
+          if (group.items && group.items.length > 0) {
+            group.items.forEach(item => {
+              itemsHtml += renderSettledItemRow(item);
+            });
+          }
 
           block.innerHTML = `
             <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
@@ -3461,12 +3462,20 @@
           `;
           settledList.appendChild(block);
         });
+      } else {
+        /* 項目で絞り込み中：精算日をまたいで該当項目をすべてフラットに一覧表示 */
+        let flatItemsHtml = '';
+        settledGroups.forEach((group) => {
+          const groupItems = (group.items || []).filter(item => item.category === settledCategoryFilter);
+          groupItems.forEach(item => {
+            flatItemsHtml += renderSettledItemRow(item, group.date);
+          });
+        });
 
-        if (renderedCount === 0) {
-          const emptyMsg = (settledCategoryFilter && settledCategoryFilter !== 'すべて')
-            ? `「${settledCategoryFilter}」の精算済みの記録はありません`
-            : '精算済みの履歴はありません';
-          settledList.innerHTML = `<div style="text-align: center; color: var(--text-sub); font-size: 0.85em; padding: 10px;">${emptyMsg}</div>`;
+        if (flatItemsHtml) {
+          settledList.innerHTML = `<ul style="margin: 0; padding: 0;">${flatItemsHtml}</ul>`;
+        } else {
+          settledList.innerHTML = `<div style="text-align: center; color: var(--text-sub); font-size: 0.85em; padding: 10px;">「${settledCategoryFilter}」の精算済みの記録はありません</div>`;
         }
       }
     }
