@@ -1064,6 +1064,7 @@
   <!-- 4. 精算済みの過去履歴 -->
   <div class="card">
     <h3>精算済みの過去履歴</h3>
+    <div class="filter-category-buttons" id="filterSettledCategoryButtons"></div>
     <div id="settledHistoryList"></div>
   </div>
 
@@ -1472,6 +1473,7 @@
     let categories = defaultCategories;
     let quickCategories = defaultQuickCategories;
     let categoryFilter = 'すべて';
+    let settledCategoryFilter = 'すべて';
     let templates = [];
     
     // 割合切り替えのステータス管理
@@ -2506,6 +2508,7 @@
         updateCategorySelect();
         renderQuickCategoryButtons();
         renderFilterCategoryButtons();
+        renderSettledFilterCategoryButtons();
         updateView();
         
         if (document.getElementById('categoryModal').classList.contains('open')) {
@@ -2597,6 +2600,37 @@
     function selectCategoryFilter(cat) {
       categoryFilter = cat;
       renderFilterCategoryButtons();
+      updateView();
+    }
+
+    /* 精算済みの過去履歴：項目（カテゴリ）絞り込みチップ */
+    function renderSettledFilterCategoryButtons() {
+      const container = document.getElementById('filterSettledCategoryButtons');
+      if (!container) return;
+      if (!categories.includes(settledCategoryFilter) && settledCategoryFilter !== 'すべて') {
+        settledCategoryFilter = 'すべて';
+      }
+      container.innerHTML = '';
+      const allBtn = document.createElement('button');
+      allBtn.type = 'button';
+      allBtn.className = 'btn-filter-category' + (settledCategoryFilter === 'すべて' ? ' active' : '');
+      allBtn.textContent = 'すべて';
+      allBtn.onclick = () => selectSettledCategoryFilter('すべて');
+      container.appendChild(allBtn);
+
+      categories.forEach(cat => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'btn-filter-category' + (cat === settledCategoryFilter ? ' active' : '');
+        btn.textContent = cat;
+        btn.onclick = () => selectSettledCategoryFilter(cat);
+        container.appendChild(btn);
+      });
+    }
+
+    function selectSettledCategoryFilter(cat) {
+      settledCategoryFilter = cat;
+      renderSettledFilterCategoryButtons();
       updateView();
     }
 
@@ -3368,17 +3402,31 @@
 
       if (settledGroups.length === 0) {
         settledList.innerHTML = '<div style="text-align: center; color: var(--text-sub); font-size: 0.85em; padding: 10px;">精算済みの履歴はありません</div>';
-      }
+      } else {
+        let renderedCount = 0;
 
-      settledGroups.forEach((group) => {
-        const block = document.createElement('div');
-        block.className = 'settlement-block';
+        settledGroups.forEach((group) => {
+          const groupItems = (group.items && group.items.length > 0)
+            ? group.items.filter(item => settledCategoryFilter === 'すべて' || item.category === settledCategoryFilter)
+            : [];
 
-        let itemsHtml = '';
-        if (group.items && group.items.length > 0) {
-          group.items.forEach(item => {
+          if (groupItems.length === 0) return;
+          renderedCount++;
+
+          const block = document.createElement('div');
+          block.className = 'settlement-block';
+
+          let itemsHtml = '';
+          groupItems.forEach(item => {
             const ratioStr = getRatioDisplayText(item.splitType, item.ratioY, item.ratioU);
             const personalStr = (item.personalItems && item.personalItems.length > 0) ? ` / 🛒${getPersonalSummaryText(item)}` : '';
+            const itemSettlement = calcSettlement(item);
+            let itemPayText = '';
+            if (item.payer === 'ゆうすけ') {
+              itemPayText = `うらら→ゆうすけ ${itemSettlement.amt.toLocaleString()}円`;
+            } else if (item.payer === 'うらら') {
+              itemPayText = `ゆうすけ→うらら ${itemSettlement.amt.toLocaleString()}円`;
+            }
             itemsHtml += `
               <li style="padding: 6px 0; border-bottom: 1px dashed rgba(0,0,0,0.05);">
                 <div>
@@ -3386,34 +3434,41 @@
                   <span style="color: var(--primary-color); font-weight: bold;">(${item.amount.toLocaleString()}円)</span>
                 </div>
                 <div style="font-size: 0.8em; color: var(--text-sub);">
-                  ${item.date} / ${item.payer}が支払い / ${ratioStr}${personalStr}
+                  ${item.date} / ${item.payer}が支払い (${ratioStr})${personalStr} / ${itemPayText}
                 </div>
               </li>
             `;
           });
-        }
 
-        block.innerHTML = `
-          <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
-            <div class="settlement-title-info">
-              <span class="accordion-icon" id="icon-${group.id}">▶</span>
-              <div>
-                <div>${group.date} の精算</div>
-                <div style="font-size: 0.8em; color: var(--primary-color); font-weight: normal; margin-top: 2px;">
-                  ${group.summaryText}
+          block.innerHTML = `
+            <div class="settlement-header" onclick="toggleAccordion('${group.id}')">
+              <div class="settlement-title-info">
+                <span class="accordion-icon" id="icon-${group.id}">▶</span>
+                <div>
+                  <div>${group.date} の精算</div>
+                  <div style="font-size: 0.8em; color: var(--primary-color); font-weight: normal; margin-top: 2px;">
+                    ${group.summaryText}
+                  </div>
                 </div>
               </div>
+              <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
             </div>
-            <button class="btn-delete" onclick="deleteSettledGroup('${group.id}', event)">削除</button>
-          </div>
-          <div class="settlement-details" id="details-${group.id}">
-            <ul style="margin: 0; padding: 0;">
-              ${itemsHtml}
-            </ul>
-          </div>
-        `;
-        settledList.appendChild(block);
-      });
+            <div class="settlement-details" id="details-${group.id}">
+              <ul style="margin: 0; padding: 0;">
+                ${itemsHtml}
+              </ul>
+            </div>
+          `;
+          settledList.appendChild(block);
+        });
+
+        if (renderedCount === 0) {
+          const emptyMsg = (settledCategoryFilter && settledCategoryFilter !== 'すべて')
+            ? `「${settledCategoryFilter}」の精算済みの記録はありません`
+            : '精算済みの履歴はありません';
+          settledList.innerHTML = `<div style="text-align: center; color: var(--text-sub); font-size: 0.85em; padding: 10px;">${emptyMsg}</div>`;
+        }
+      }
     }
 
     function setupConnectivityWatcher() {
