@@ -235,13 +235,6 @@
       box-shadow: 0 0 0 4px rgba(91, 127, 199, 0.14);
       background: #ffffff;
     }
-    /* 金額など必須項目が未入力・不正な値の時の赤枠表示 */
-    input.input-invalid {
-      border-color: #ff5b69 !important;
-    }
-    input.input-invalid:focus {
-      box-shadow: 0 0 0 4px rgba(255, 91, 105, 0.16) !important;
-    }
     /* 送信系ボタンの二重送信防止時の見た目 */
     .btn-submit:disabled, .btn-settle:disabled {
       opacity: 0.55;
@@ -1145,7 +1138,7 @@
         <label>金額（円）</label>
         <button type="button" class="btn-calc" onclick="openCalculator('amount')">🧮 電卓</button>
       </div>
-      <input type="number" id="amount" placeholder="例: 3000" oninput="updatePersonalSummary('');validateAmountField('amount','btnAddTransaction')">
+      <input type="number" id="amount" placeholder="例: 3000" oninput="updatePersonalSummary('')">
 
       <div class="personal-area">
         <button type="button" class="btn-link personal-toggle-btn" id="personalToggleBtn" onclick="togglePersonalArea('')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
@@ -1346,7 +1339,7 @@
           <label>金額（円）</label>
           <button type="button" class="btn-calc" onclick="openCalculator('editAmount')">🧮 電卓</button>
         </div>
-        <input type="number" id="editAmount" oninput="updatePersonalSummary('edit');validateAmountField('editAmount','btnSaveEditedTransaction')">
+        <input type="number" id="editAmount" oninput="updatePersonalSummary('edit')">
 
         <div class="personal-area">
           <button type="button" class="btn-link personal-toggle-btn" id="editPersonalToggleBtn" onclick="togglePersonalArea('edit')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
@@ -1431,7 +1424,7 @@
           <label>金額（円）</label>
           <button type="button" class="btn-calc" onclick="openCalculator('tmplUseAmount')">🧮 電卓</button>
         </div>
-        <input type="number" id="tmplUseAmount" oninput="updatePersonalSummary('tmplUse');validateAmountField('tmplUseAmount','btnSubmitTemplateTransaction')">
+        <input type="number" id="tmplUseAmount" oninput="updatePersonalSummary('tmplUse')">
 
         <div class="personal-area">
           <button type="button" class="btn-link personal-toggle-btn" id="tmplUsePersonalToggleBtn" onclick="togglePersonalArea('tmplUse')" style="font-size: 0.78em; color: var(--text-sub);">＋ 個人分を差し引く</button>
@@ -1981,18 +1974,6 @@
         return `${ownerShort}${incl.toLocaleString()}${p.memo ? '(' + p.memo + ')' : ''}`;
       });
       return `個人 ${parts.join('・')}`;
-    }
-
-    /* 金額入力欄のリアルタイムバリデーション：未入力・0円以下なら赤枠表示＋送信ボタンを無効化 */
-    function validateAmountField(inputId, buttonId) {
-      const input = document.getElementById(inputId);
-      const btn = document.getElementById(buttonId);
-      if (!input || !btn) return;
-      const raw = input.value;
-      const val = Number(raw);
-      const invalid = raw === '' || isNaN(val) || val <= 0;
-      input.classList.toggle('input-invalid', invalid);
-      btn.disabled = invalid;
     }
 
     function openCalculator(targetInputId) {
@@ -3116,7 +3097,6 @@
 
         document.getElementById('amount').value = '';
         document.getElementById('title').value = '';
-        validateAmountField('amount', 'btnAddTransaction');
 
         if (isCustomRatio) {
           isCustomRatio = false;
@@ -3131,8 +3111,6 @@
         resetPersonalArea('');
       } finally {
         btn.disabled = false;
-        // 金額が未入力に戻っている場合はボタンを無効のままにする
-        validateAmountField('amount', 'btnAddTransaction');
       }
     }
 
@@ -3150,7 +3128,6 @@
       document.getElementById('editCategory').value = item.category || categories[0];
       document.getElementById('editAmount').value = item.amount;
       document.getElementById('editMemo').value = item.memo || '';
-      validateAmountField('editAmount', 'btnSaveEditedTransaction');
       
       const splitType = item.splitType || 'EQUAL';
       
@@ -3289,7 +3266,6 @@
       document.getElementById('tmplUseCategory').value = item.category || categories[0];
       document.getElementById('tmplUseAmount').value = item.amount || '';
       document.getElementById('tmplUseMemo').value = item.memo || '';
-      validateAmountField('tmplUseAmount', 'btnSubmitTemplateTransaction');
 
       const splitType = item.splitType || 'EQUAL';
       if (splitType === 'CUSTOM') {
@@ -3972,7 +3948,6 @@
     setDefaultDate();
     setupConnectivityWatcher();
     loadLastUpdated();
-    validateAmountField('amount', 'btnAddTransaction');
 
     // サインインが完了してからデータの読み込みを開始する
     firebase.auth().onAuthStateChanged((user) => {
