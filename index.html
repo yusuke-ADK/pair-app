@@ -941,6 +941,16 @@
     }
     .btn-quick-star:active { transform: scale(0.8); }
 
+    /* 「指定なし」など固定項目の表示用 */
+    .category-fixed-tag {
+      font-size: 0.72em;
+      color: var(--text-sub);
+      background: rgba(0,0,0,0.05);
+      padding: 4px 8px;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+
     /* ルーレット演出用スタイル */
     .roulette-box {
       text-align: center;
@@ -1681,7 +1691,9 @@
       console.error("サインイン失敗:", error.code, error.message);
     });
 
-    const defaultCategories = ["食費", "外食代", "日用品", "家賃", "光熱水費", "交通費", "娯楽・レジャー", "旅行", "その他"];
+    // 「指定なし」：項目を決めたくない時の既定カテゴリー（削除・名前変更不可、フォームの初期値）
+    const NONE_CATEGORY = "指定なし";
+    const defaultCategories = [NONE_CATEGORY, "食費", "外食代", "日用品", "家賃", "光熱水費", "交通費", "娯楽・レジャー", "旅行", "その他"];
     const defaultQuickCategories = ["食費", "外食代", "日用品"];
     let transactions = [];
     let settledGroups = [];
@@ -2725,11 +2737,15 @@
 
       db.collection('settings').doc('categories').onSnapshot(doc => {
         const data = doc.exists ? doc.data() : {};
-        if (data.list) {
-          categories = data.list;
-        } else {
-          categories = defaultCategories;
+        let list = data.list ? data.list : defaultCategories;
+        // 既存データに「指定なし」が無い場合は先頭に追加して保存する（1回だけ。保存後は含まれるので再実行されない）
+        if (!list.includes(NONE_CATEGORY)) {
+          list = [NONE_CATEGORY, ...list];
+          if (doc.exists) {
+            db.collection('settings').doc('categories').set({ list: list }, { merge: true });
+          }
         }
+        categories = list;
         if (data.quickList) {
           quickCategories = data.quickList;
         } else {
@@ -2778,7 +2794,12 @@
           opt.value = cat; opt.textContent = cat;
           el.appendChild(opt);
         });
-        if (categories.includes(currentVal)) el.value = currentVal;
+        if (categories.includes(currentVal)) {
+          el.value = currentVal;
+        } else if (categories.includes(NONE_CATEGORY)) {
+          // 初回表示や選択中の項目が削除された場合は「指定なし」を既定にする
+          el.value = NONE_CATEGORY;
+        }
       });
     }
 
@@ -2967,6 +2988,12 @@
       categories.forEach((cat, index) => {
         const li = document.createElement('li');
         const isQuick = quickCategories.includes(cat);
+        const isNone = cat === NONE_CATEGORY;
+        // 「指定なし」は名前変更・削除ができない固定項目
+        const actionHtml = isNone
+          ? `<span class="category-fixed-tag">固定</span>`
+          : `<button class="btn-rename" onclick="renameCategory(${index})">名前変更</button>
+             <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>`;
         li.innerHTML = `
           <div style="display: flex; align-items: center; gap: 8px;">
             <span class="drag-handle">☰</span>
@@ -2974,8 +3001,7 @@
           </div>
           <div class="btn-action-group">
             <button class="btn-quick-star" title="ワンタッチボタンに表示" onclick="toggleQuickCategory(${index})">${isQuick ? '⭐' : '☆'}</button>
-            <button class="btn-rename" onclick="renameCategory(${index})">名前変更</button>
-            <button class="btn-delete" onclick="deleteCategory(${index})">削除</button>
+            ${actionHtml}
           </div>
         `;
         modalList.appendChild(li);
@@ -3000,8 +3026,9 @@
       input.value = '';
     }
     async function deleteCategory(index) {
-      if (categories.length <= 1) return alert('項目は最低1つ残す必要があります');
       const target = categories[index];
+      if (target === NONE_CATEGORY) return alert(`「${NONE_CATEGORY}」は削除できません`);
+      if (categories.length <= 1) return alert('項目は最低1つ残す必要があります');
       if (confirm(`「${target}」を削除しますか？`)) {
         const newCategories = categories.filter((_, i) => i !== index);
         const newQuickList = quickCategories.filter(c => c !== target);
@@ -3012,6 +3039,7 @@
     /* 項目名の変更（過去の記録に登録済みのタイトル・項目名はさかのぼって変更されません） */
     async function renameCategory(index) {
       const oldName = categories[index];
+      if (oldName === NONE_CATEGORY) return alert(`「${NONE_CATEGORY}」の名前は変更できません`);
       const input = prompt('新しい項目名を入力してください', oldName);
       if (input === null) return;
       const newName = input.trim();
@@ -3115,6 +3143,11 @@
         document.getElementById('ratioYusuke').value = '1';
         document.getElementById('ratioUrara').value = '1';
         document.getElementById('payerYusuke').checked = true;
+        // 項目は「指定なし」に戻す
+        if (categories.includes(NONE_CATEGORY)) {
+          document.getElementById('category').value = NONE_CATEGORY;
+          renderQuickCategoryButtons();
+        }
         resetPersonalArea('');
       } finally {
         btn.disabled = false;
@@ -3132,7 +3165,7 @@
       const payerInput = document.querySelector(`input[name="editPayer"][value="${item.payer}"]`);
       if (payerInput) payerInput.checked = true;
 
-      document.getElementById('editCategory').value = item.category || categories[0];
+      document.getElementById('editCategory').value = item.category || NONE_CATEGORY;
       document.getElementById('editAmount').value = item.amount;
       document.getElementById('editMemo').value = item.memo || '';
       
@@ -3270,7 +3303,7 @@
       const payerInput = document.querySelector(`input[name="tmplUsePayer"][value="${item.payer}"]`);
       if (payerInput) payerInput.checked = true;
 
-      document.getElementById('tmplUseCategory').value = item.category || categories[0];
+      document.getElementById('tmplUseCategory').value = item.category || NONE_CATEGORY;
       document.getElementById('tmplUseAmount').value = item.amount || '';
       document.getElementById('tmplUseMemo').value = item.memo || '';
 
@@ -3444,7 +3477,7 @@
       const payerInput = document.querySelector(`input[name="tmplEditPayer"][value="${item.payer}"]`);
       if (payerInput) payerInput.checked = true;
 
-      document.getElementById('tmplEditCategory').value = item.category || categories[0];
+      document.getElementById('tmplEditCategory').value = item.category || NONE_CATEGORY;
       document.getElementById('tmplEditAmount').value = item.amount || '';
       document.getElementById('tmplEditMemo').value = item.memo || '';
 
