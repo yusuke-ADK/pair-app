@@ -414,6 +414,56 @@
     li:last-child { border-bottom: none; }
 
     .item-info { flex-grow: 1; padding-right: 8px; }
+
+    /* 未精算リスト：長押しメニュー用 */
+    #historyList li {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
+      cursor: pointer;
+      border-radius: var(--radius-sm);
+      transition: background 0.2s ease, transform 0.2s var(--ease-out);
+    }
+    #historyList li.pressing {
+      background: rgba(91, 127, 199, 0.14);
+      transform: scale(0.985);
+    }
+    .long-press-hint {
+      text-align: center;
+      font-size: 0.74em;
+      color: var(--text-sub);
+      margin: -4px 0 10px 0;
+    }
+
+    /* 長押しメニュー（アクションシート） */
+    .action-sheet-content { max-width: 340px; padding: 18px; }
+    .action-sheet-title {
+      font-size: 0.9em;
+      font-weight: bold;
+      color: var(--text-main);
+      text-align: center;
+      margin-bottom: 14px;
+      line-height: 1.4;
+      word-break: break-all;
+    }
+    .action-btn {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      margin-bottom: 9px;
+      border: none;
+      border-radius: var(--radius-md);
+      font-size: 0.95em;
+      font-weight: bold;
+      cursor: pointer;
+      min-height: 48px;
+      transition: filter 0.15s ease, transform 0.15s ease;
+    }
+    .action-btn:active { transform: scale(0.97); }
+    .action-btn.edit { background: #fed330; color: #2d3436; }
+    .action-btn.copy { background: linear-gradient(135deg, #74b9ff 0%, #4a90e2 100%); color: #fff; }
+    .action-btn.delete { background: linear-gradient(135deg, #ff8a8f 0%, #ff5b69 100%); color: #fff; }
+    .action-btn.cancel { background: rgba(0,0,0,0.06); color: var(--text-sub); margin-bottom: 0; }
     .item-title { font-weight: bold; color: var(--text-main); font-size: 0.95em; }
     .item-sub { color: var(--text-sub); font-size: 0.82em; margin-top: 3px; line-height: 1.4; }
 
@@ -1211,6 +1261,7 @@
       </select>
     </div>
     <div class="filter-category-buttons" id="filterCategoryButtons"></div>
+    <div class="long-press-hint">💡 記録を長押しすると、編集・コピーして追加・削除ができます</div>
     <ul id="historyList"></ul>
   </div>
 
@@ -1324,7 +1375,7 @@
   <div class="modal-overlay" id="editModal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3>記録の編集</h3>
+        <h3 id="editModalTitle">記録の編集</h3>
         <button class="btn-close" onclick="closeEditModal()">✕</button>
       </div>
       <div class="form-group">
@@ -1390,6 +1441,17 @@
 
         <button class="btn-submit" id="btnSaveEditedTransaction" onclick="saveEditedTransaction()" style="margin-top: 10px;">変更を保存する</button>
       </div>
+    </div>
+  </div>
+
+  <!-- 記録の長押しメニュー -->
+  <div class="modal-overlay" id="actionSheet" onclick="if (event.target === this) closeActionSheet()">
+    <div class="modal-content action-sheet-content">
+      <div class="action-sheet-title" id="actionSheetTitle"></div>
+      <button class="action-btn edit" onclick="actionSheetDo('edit')">✏️ 編集する</button>
+      <button class="action-btn copy" onclick="actionSheetDo('copy')">📋 この記録をコピーして追加</button>
+      <button class="action-btn delete" onclick="actionSheetDo('delete')">🗑️ 削除する</button>
+      <button class="action-btn cancel" onclick="closeActionSheet()">キャンセル</button>
     </div>
   </div>
 
@@ -1717,6 +1779,7 @@
     // 割合切り替えのステータス管理
     let isCustomRatio = false;
     let isEditCustomRatio = false;
+    let editModalMode = 'edit'; // 'edit' = 上書き保存 / 'copy' = コピーして新規追加
     let isTmplCustomRatio = false;
     let isTmplUseCustomRatio = false;
     let isTmplEditCustomRatio = false;
@@ -3155,12 +3218,20 @@
     }
 
     /* 編集モーダル */
-    function openEditModal(id) {
+    function openEditModal(id, mode) {
       const item = transactions.find(t => t.id === id);
       if (!item) return;
 
-      document.getElementById('editId').value = item.id;
-      document.getElementById('editDateInput').value = item.rawDate || item.date.replace(/\//g, '-');
+      editModalMode = (mode === 'copy') ? 'copy' : 'edit';
+      const isCopy = editModalMode === 'copy';
+      document.getElementById('editModalTitle').textContent = isCopy ? '記録をコピーして追加' : '記録の編集';
+      document.getElementById('btnSaveEditedTransaction').textContent = isCopy ? 'この内容で追加する' : '変更を保存する';
+
+      document.getElementById('editId').value = isCopy ? '' : item.id;
+      // コピー時の発生日は今日（必要なら変更できる）
+      document.getElementById('editDateInput').value = isCopy
+        ? formatDateOffset(0)
+        : (item.rawDate || item.date.replace(/\//g, '-'));
       
       const payerInput = document.querySelector(`input[name="editPayer"][value="${item.payer}"]`);
       if (payerInput) payerInput.checked = true;
@@ -3191,6 +3262,7 @@
 
     function closeEditModal() {
       document.getElementById('editModal').classList.remove('open');
+      editModalMode = 'edit';
     }
 
     async function saveEditedTransaction() {
@@ -3225,15 +3297,104 @@
         const formattedDate = dateVal.replace(/-/g, '/');
         const title = memo ? `${category}（${memo}）` : category;
 
-        await db.collection('transactions').doc(id).update({
-          payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
-          date: formattedDate, rawDate: dateVal
-        });
+        if (editModalMode === 'copy') {
+          // コピーして追加：新しい記録として登録する
+          await db.collection('transactions').add({
+            payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
+            date: formattedDate, rawDate: dateVal, createdAt: Date.now()
+          });
+        } else {
+          await db.collection('transactions').doc(id).update({
+            payer, category, memo, amount, title, splitType, ratioY, ratioU, personalItems,
+            date: formattedDate, rawDate: dateVal
+          });
+        }
 
         closeEditModal();
       } finally {
         btn.disabled = false;
       }
+    }
+
+
+    /* --- 未精算の記録：長押しメニュー --- */
+    let actionSheetTargetId = null;
+    const LONG_PRESS_MS = 500;
+    const LONG_PRESS_MOVE_TOLERANCE = 10; // px：これ以上動いたらスクロールとみなして中止
+
+    function openActionSheet(id) {
+      const item = transactions.find(t => t.id === id);
+      if (!item) return;
+      actionSheetTargetId = id;
+      document.getElementById('actionSheetTitle').textContent = `${item.title} - ${(item.amount || 0).toLocaleString()}円`;
+      document.getElementById('actionSheet').classList.add('open');
+      if (navigator.vibrate) navigator.vibrate(15);
+    }
+
+    function closeActionSheet() {
+      document.getElementById('actionSheet').classList.remove('open');
+    }
+
+    function actionSheetDo(action) {
+      const id = actionSheetTargetId;
+      closeActionSheet();
+      if (!id) return;
+      if (action === 'edit') openEditModal(id, 'edit');
+      else if (action === 'copy') openEditModal(id, 'copy');
+      else if (action === 'delete') deleteTransaction(id);
+    }
+
+    function setupHistoryLongPress() {
+      const list = document.getElementById('historyList');
+      if (!list) return;
+
+      let timer = null;
+      let startX = 0, startY = 0;
+      let pressedLi = null;
+      let firedAt = 0;
+
+      const cancel = () => {
+        if (timer) { clearTimeout(timer); timer = null; }
+        if (pressedLi) { pressedLi.classList.remove('pressing'); pressedLi = null; }
+      };
+
+      list.addEventListener('pointerdown', (e) => {
+        if (e.pointerType === 'mouse' && e.button !== 0) return;
+        const li = e.target.closest('li[data-id]');
+        if (!li) return;
+        cancel();
+        startX = e.clientX;
+        startY = e.clientY;
+        pressedLi = li;
+        li.classList.add('pressing');
+        timer = setTimeout(() => {
+          const id = li.dataset.id;
+          cancel();
+          firedAt = Date.now();
+          openActionSheet(id);
+        }, LONG_PRESS_MS);
+      });
+
+      list.addEventListener('pointermove', (e) => {
+        if (!timer) return;
+        if (Math.abs(e.clientX - startX) > LONG_PRESS_MOVE_TOLERANCE ||
+            Math.abs(e.clientY - startY) > LONG_PRESS_MOVE_TOLERANCE) {
+          cancel();
+        }
+      });
+
+      ['pointerup', 'pointercancel', 'pointerleave'].forEach(type => list.addEventListener(type, cancel));
+      window.addEventListener('scroll', cancel, { passive: true });
+
+      // スマホの長押しメニュー・PCの右クリックメニューを抑止（PCでは右クリックでもシートを開ける）
+      list.addEventListener('contextmenu', (e) => {
+        const li = e.target.closest('li[data-id]');
+        if (!li) return;
+        e.preventDefault();
+        if (Date.now() - firedAt < 800) return; // 長押しで既に開いた直後は二重に開かない
+        cancel();
+        openActionSheet(li.dataset.id);
+      });
     }
 
     async function deleteTransaction(id) {
@@ -3670,14 +3831,11 @@
 
         const personalTag = (t.personalItems && t.personalItems.length > 0) ? ` / 🛒${getPersonalSummaryText(t)}` : '';
 
+        li.dataset.id = t.id;
         li.innerHTML = `
           <div class="item-info">
             <div class="item-title">${t.title} - ${t.amount.toLocaleString()}円</div>
             <div class="item-sub">${t.date} / ${t.payer}が支払い (${typeText})${personalTag} / ${payText}</div>
-          </div>
-          <div class="btn-action-group">
-            <button class="btn-edit" onclick="openEditModal('${t.id}')">編集</button>
-            <button class="btn-delete" onclick="deleteTransaction('${t.id}')">削除</button>
           </div>
         `;
         historyList.appendChild(li);
@@ -3986,6 +4144,7 @@
 
     // 初期化
     setDefaultDate();
+    setupHistoryLongPress();
     setupConnectivityWatcher();
     loadLastUpdated();
 
