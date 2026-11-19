@@ -1285,6 +1285,9 @@
       </select>
     </div>
     <div class="filter-category-buttons" id="filterCategoryButtons"></div>
+    <div class="settled-search-row">
+      <input type="text" id="historySearchInput" placeholder="項目・メモ・タイトルで検索" oninput="onHistorySearchInput(this.value)">
+    </div>
     <div class="long-press-hint">💡 記録を長押しすると、編集・コピーして追加・削除ができます</div>
     <ul id="historyList"></ul>
   </div>
@@ -1469,14 +1472,14 @@
   </div>
 
   <!-- 記録の長押しメニュー -->
-  <div class="modal-overlay" id="actionSheet" onclick="if (event.target === this) closeActionSheet()">
+  <div class="modal-overlay" id="actionSheet" onclick="if (event.target === this) closeActionSheetByUser()">
     <div class="modal-content action-sheet-content">
       <div class="action-sheet-title" id="actionSheetTitle"></div>
       <div class="action-sheet-info" id="actionSheetInfo"></div>
       <button class="action-btn edit" onclick="actionSheetDo('edit')">✏️ 編集する</button>
       <button class="action-btn copy" onclick="actionSheetDo('copy')">📋 この記録をコピーして追加</button>
       <button class="action-btn delete" onclick="actionSheetDo('delete')">🗑️ 削除する</button>
-      <button class="action-btn cancel" onclick="closeActionSheet()">キャンセル</button>
+      <button class="action-btn cancel" onclick="closeActionSheetByUser()">キャンセル</button>
     </div>
   </div>
 
@@ -1804,6 +1807,7 @@
     // 割合切り替えのステータス管理
     let isCustomRatio = false;
     let isEditCustomRatio = false;
+    let historySearchText = '';
     let editModalMode = 'edit'; // 'edit' = 上書き保存 / 'copy' = コピーして新規追加
     let isTmplCustomRatio = false;
     let isTmplUseCustomRatio = false;
@@ -3344,6 +3348,8 @@
 
     /* --- 未精算の記録：長押しメニュー --- */
     let actionSheetTargetId = null;
+    let actionSheetArmed = false;      // 長押しの指が離れるまでは false（誤タップ防止）
+    let actionSheetArmTimer = null;
     const LONG_PRESS_MS = 500;
     const LONG_PRESS_MOVE_TOLERANCE = 10; // px：これ以上動いたらスクロールとみなして中止
 
@@ -3351,6 +3357,7 @@
       const item = transactions.find(t => t.id === id);
       if (!item) return;
       actionSheetTargetId = id;
+      armActionSheetAfterRelease();
       document.getElementById('actionSheetTitle').textContent = `${item.title} - ${(item.amount || 0).toLocaleString()}円`;
 
       const s = calcSettlement(item);
@@ -3391,7 +3398,32 @@
       document.getElementById('actionSheet').classList.remove('open');
     }
 
+    /* 長押しで開いた直後は、指が離れるまで（＋少し待つ）メニューのボタンを無効にする */
+    function armActionSheetAfterRelease() {
+      actionSheetArmed = false;
+      clearTimeout(actionSheetArmTimer);
+      // 保険：指が離れたイベントを取りこぼしても、3秒後には必ず押せるようにする
+      actionSheetArmTimer = setTimeout(() => { actionSheetArmed = true; }, 3000);
+    }
+
+    function onFingerReleased() {
+      if (actionSheetArmed) return;
+      if (!document.getElementById('actionSheet').classList.contains('open')) return;
+      clearTimeout(actionSheetArmTimer);
+      // 指を離した直後に発生するクリックをやり過ごしてから有効化
+      actionSheetArmTimer = setTimeout(() => { actionSheetArmed = true; }, 350);
+    }
+    ['pointerup', 'pointercancel', 'touchend', 'touchcancel', 'mouseup'].forEach(type =>
+      document.addEventListener(type, onFingerReleased, true)
+    );
+
+    function closeActionSheetByUser() {
+      if (!actionSheetArmed) return;
+      closeActionSheet();
+    }
+
     function actionSheetDo(action) {
+      if (!actionSheetArmed) return; // 長押しの指を離した拍子の誤タップを無視
       const id = actionSheetTargetId;
       closeActionSheet();
       if (!id) return;
@@ -3831,6 +3863,11 @@
       }
     }
 
+    function onHistorySearchInput(v) {
+      historySearchText = v.trim();
+      updateView();
+    }
+
     function updateView() {
       let balance = 0;
       
@@ -3849,6 +3886,12 @@
       let sortedTransactions = (categoryFilter && categoryFilter !== 'すべて')
         ? transactions.filter(t => t.category === categoryFilter)
         : [...transactions];
+      if (historySearchText) {
+        const kw = historySearchText.toLowerCase();
+        sortedTransactions = sortedTransactions.filter(t =>
+          [t.category, t.memo, t.title].filter(Boolean).join(' ').toLowerCase().includes(kw)
+        );
+      }
       sortedTransactions.sort((a, b) => {
         let valA = a[sortKey];
         let valB = b[sortKey];
@@ -3867,9 +3910,11 @@
       historyList.innerHTML = '';
 
       if (sortedTransactions.length === 0) {
-        const emptyMsg = (categoryFilter && categoryFilter !== 'すべて')
-          ? `「${categoryFilter}」の未精算の記録はありません`
-          : '未精算の記録はありません';
+        const emptyMsg = historySearchText
+          ? '検索に一致する未精算の記録はありません'
+          : (categoryFilter && categoryFilter !== 'すべて')
+            ? `「${categoryFilter}」の未精算の記録はありません`
+            : '未精算の記録はありません';
         historyList.innerHTML = `<li style="justify-content: center; color: var(--text-sub);">${emptyMsg}</li>`;
       }
 
