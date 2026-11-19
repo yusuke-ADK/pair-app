@@ -451,7 +451,7 @@
       border-radius: var(--radius-md);
       padding: 8px 12px;
       margin-bottom: 14px;
-      font-size: 0.8em;
+      font-size: 0.85em;
     }
     .action-sheet-row {
       display: flex;
@@ -1474,7 +1474,6 @@
   <!-- 記録の長押しメニュー -->
   <div class="modal-overlay" id="actionSheet" onclick="if (event.target === this) closeActionSheetByUser()">
     <div class="modal-content action-sheet-content">
-      <div class="action-sheet-title" id="actionSheetTitle"></div>
       <div class="action-sheet-info" id="actionSheetInfo"></div>
       <button class="action-btn edit" onclick="actionSheetDo('edit')">✏️ 編集する</button>
       <button class="action-btn copy" onclick="actionSheetDo('copy')">📋 この記録をコピーして追加</button>
@@ -3358,7 +3357,6 @@
       if (!item) return;
       actionSheetTargetId = id;
       armActionSheetAfterRelease();
-      document.getElementById('actionSheetTitle').textContent = `${item.title} - ${(item.amount || 0).toLocaleString()}円`;
 
       const s = calcSettlement(item);
       let payText = '貸し借りなし';
@@ -3368,6 +3366,8 @@
         payText = s.amt > 0 ? `ゆうすけ → うらら ${s.amt.toLocaleString()}円` : '支払いなし（0円）';
       }
       const rows = [
+        ['🏷️ 項目', item.title],
+        ['💰 金額', `${(item.amount || 0).toLocaleString()}円`],
         ['📅 発生日', item.date],
         ['👤 支払い', `${item.payer}が支払い（${getRatioDisplayText(item.splitType, item.ratioY, item.ratioU)}）`],
         ['🔄 精算', payText]
