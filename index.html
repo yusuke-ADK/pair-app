@@ -438,12 +438,36 @@
     /* 長押しメニュー（アクションシート） */
     .action-sheet-content { max-width: 340px; padding: 18px; }
     .action-sheet-title {
-      font-size: 0.9em;
+      font-size: 1em;
       font-weight: bold;
       color: var(--text-main);
       text-align: center;
-      margin-bottom: 14px;
+      margin-bottom: 10px;
       line-height: 1.4;
+      word-break: break-all;
+    }
+    .action-sheet-info {
+      background: var(--primary-light);
+      border-radius: var(--radius-md);
+      padding: 8px 12px;
+      margin-bottom: 14px;
+      font-size: 0.8em;
+    }
+    .action-sheet-row {
+      display: flex;
+      gap: 10px;
+      padding: 4px 0;
+      line-height: 1.4;
+    }
+    .action-sheet-row + .action-sheet-row { border-top: 1px dashed rgba(91, 127, 199, 0.25); }
+    .action-sheet-label {
+      flex: 0 0 4.6em;
+      color: var(--text-sub);
+      font-weight: bold;
+    }
+    .action-sheet-value {
+      flex: 1;
+      color: var(--text-main);
       word-break: break-all;
     }
     .action-btn {
@@ -1448,6 +1472,7 @@
   <div class="modal-overlay" id="actionSheet" onclick="if (event.target === this) closeActionSheet()">
     <div class="modal-content action-sheet-content">
       <div class="action-sheet-title" id="actionSheetTitle"></div>
+      <div class="action-sheet-info" id="actionSheetInfo"></div>
       <button class="action-btn edit" onclick="actionSheetDo('edit')">✏️ 編集する</button>
       <button class="action-btn copy" onclick="actionSheetDo('copy')">📋 この記録をコピーして追加</button>
       <button class="action-btn delete" onclick="actionSheetDo('delete')">🗑️ 削除する</button>
@@ -3327,6 +3352,37 @@
       if (!item) return;
       actionSheetTargetId = id;
       document.getElementById('actionSheetTitle').textContent = `${item.title} - ${(item.amount || 0).toLocaleString()}円`;
+
+      const s = calcSettlement(item);
+      let payText = '貸し借りなし';
+      if (item.payer === 'ゆうすけ') {
+        payText = s.amt > 0 ? `うらら → ゆうすけ ${s.amt.toLocaleString()}円` : '支払いなし（0円）';
+      } else if (item.payer === 'うらら') {
+        payText = s.amt > 0 ? `ゆうすけ → うらら ${s.amt.toLocaleString()}円` : '支払いなし（0円）';
+      }
+      const rows = [
+        ['📅 発生日', item.date],
+        ['👤 支払い', `${item.payer}が支払い（${getRatioDisplayText(item.splitType, item.ratioY, item.ratioU)}）`],
+        ['🔄 精算', payText]
+      ];
+      if (item.personalItems && item.personalItems.length > 0) {
+        rows.push(['🛒 個人分', getPersonalSummaryText(item).replace(/^個人\s*/, '')]);
+      }
+      const infoEl = document.getElementById('actionSheetInfo');
+      infoEl.innerHTML = '';
+      rows.forEach(([label, value]) => {
+        const row = document.createElement('div');
+        row.className = 'action-sheet-row';
+        const l = document.createElement('span');
+        l.className = 'action-sheet-label';
+        l.textContent = label;
+        const v = document.createElement('span');
+        v.className = 'action-sheet-value';
+        v.textContent = value;
+        row.appendChild(l);
+        row.appendChild(v);
+        infoEl.appendChild(row);
+      });
       document.getElementById('actionSheet').classList.add('open');
       if (navigator.vibrate) navigator.vibrate(15);
     }
